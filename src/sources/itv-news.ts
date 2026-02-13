@@ -1,0 +1,430 @@
+import * as cheerio from "cheerio";
+import { chromium } from "playwright";
+import type {
+  Article,
+  Author,
+  BodyComponent,
+  ImageRef,
+  Metadata,
+  Source,
+} from "../schema/types.ts";
+import type { ArticleSource } from "./types.ts";
+
+export const itvNewsSource: ArticleSource = {
+  id: "itv-news",
+
+  canHandle(url: string): boolean {
+    return /^https?:\/\/(www\.)?itv\.com\/news\//.test(url);
+  },
+
+  async scrape(url: string): Promise<Article> {
+    const html = await fetchHtml(url);
+    return parse(html, url);
+  },
+};
+
+// --- Fetch ---
+
+async function fetchHtml(url: string): Promise<string> {
+  // ITV blocks headless Chromium — must run headed
+  const browser = await chromium.launch({ headless: false });
+
+  try {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
+
+      // Wait for Next.js data to be present
+      await page.waitForFunction(
+        () =>
+          (document.getElementById("__NEXT_DATA__")?.textContent?.length ?? 0) >
+          0,
+        { timeout: 10_000 },
+      );
+
+      // Dismiss cookie consent (ITV uses Cassie widget)
+      try {
+        const acceptBtn = page.locator(
+          '.cassie-pre-banner button:has-text("Accept")',
+        );
+        if (await acceptBtn.isVisible({ timeout: 2_000 })) {
+          await acceptBtn.click();
+        }
+      } catch {
+        // No consent banner or already dismissed
+      }
+
+      return await page.content();
+    } finally {
+      await context.close();
+    }
+  } finally {
+    await browser.close();
+  }
+}
+
+// --- Parse ---
+
+function parse(html: string, url: string): Article {
+  const $ = cheerio.load(html);
+  const nextData = extractNextData($);
+
+  if (!nextData) {
+    throw new Error("Could not find __NEXT_DATA__ in page");
+  }
+
+  const article = nextData.props?.pageProps?.article;
+  if (!article) {
+    throw new Error("No article data found in __NEXT_DATA__");
+  }
+
+  const jsonLd = extractJsonLd($);
+  const ogTags = extractOgTags($);
+  const canonical = $('link[rel="canonical"]').attr("href") ?? url;
+
+  const source = buildSource(url, canonical);
+  const metadata = buildMetadata(article, jsonLd, ogTags);
+  const authors = buildAuthors(article, jsonLd);
+  const body = buildBody(article.body?.content ?? []);
+
+  return {
+    version: "1.0",
+    extractedAt: new Date().toISOString(),
+    source,
+    metadata,
+    authors,
+    body,
+  };
+}
+
+// --- Data extraction helpers ---
+
+function extractNextData($: cheerio.CheerioAPI): any {
+  const script = $("#__NEXT_DATA__").html();
+  if (!script) return null;
+  try {
+    return JSON.parse(script);
+  } catch {
+    return null;
+  }
+}
+
+function extractJsonLd($: cheerio.CheerioAPI): any {
+  let result: any = null;
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const data = JSON.parse($(el).html() ?? "");
+      if (data["@type"] === "NewsArticle" || data["@type"] === "Article") {
+        result = data;
+      }
+    } catch {
+      // skip malformed JSON-LD
+    }
+  });
+  return result;
+}
+
+function extractOgTags($: cheerio.CheerioAPI): Record<string, string> {
+  const tags: Record<string, string> = {};
+  $("meta[property^='og:']").each((_, el) => {
+    const prop = $(el).attr("property");
+    const content = $(el).attr("content");
+    if (prop && content) tags[prop] = content;
+  });
+  return tags;
+}
+
+// --- Builders ---
+
+function buildSource(url: string, canonicalUrl: string): Source {
+  return {
+    url,
+    canonicalUrl,
+    publisherId: "itv-news",
+    cmsType: "contentful",
+    ingestionMethod: "scrape",
+  };
+}
+
+function buildMetadata(
+  article: any,
+  jsonLd: any,
+  ogTags: Record<string, string>,
+): Metadata {
+  const title =
+    article.title ?? jsonLd?.headline ?? ogTags["og:title"] ?? "Untitled";
+  const publishedAt =
+    article.displayDate ?? jsonLd?.datePublished ?? new Date().toISOString();
+
+  const thumbnail: ImageRef | undefined = article.image
+    ? {
+        url: article.image.url,
+        altText: article.image.description ?? article.image.caption,
+        width: article.image.width,
+        height: article.image.height,
+      }
+    : ogTags["og:image"]
+      ? {
+          url: ogTags["og:image"],
+          width: ogTags["og:image:width"]
+            ? parseInt(ogTags["og:image:width"], 10)
+            : undefined,
+          height: ogTags["og:image:height"]
+            ? parseInt(ogTags["og:image:height"], 10)
+            : undefined,
+        }
+      : undefined;
+
+  const categories = article.regions
+    ?.map((r: any) => r.label)
+    .filter(Boolean) as string[] | undefined;
+
+  const tags = article.topics
+    ?.map((t: any) => t.label)
+    .filter(Boolean) as string[] | undefined;
+
+  const keywords = jsonLd?.keywords
+    ? typeof jsonLd.keywords === "string"
+      ? jsonLd.keywords.split(",").map((k: string) => k.trim())
+      : jsonLd.keywords
+    : undefined;
+
+  return {
+    title,
+    subtitle: article.shortTitle !== title ? article.shortTitle : undefined,
+    excerpt:
+      article.summary ?? jsonLd?.description ?? ogTags["og:description"],
+    language: ogTags["og:locale"]?.replace("_", "-") ?? "en-GB",
+    publishedAt: ensureIso(publishedAt),
+    modifiedAt: jsonLd?.dateModified
+      ? ensureIso(jsonLd.dateModified)
+      : undefined,
+    categories: categories?.length ? categories : undefined,
+    tags: tags?.length ? tags : undefined,
+    keywords: keywords?.length ? keywords : undefined,
+    section: jsonLd?.articleSection ?? article.regions?.[0]?.label,
+    thumbnail,
+    urgency: article.label === "breaking" ? "breaking" : undefined,
+  };
+}
+
+function buildAuthors(article: any, jsonLd: any): Author[] {
+  // ITV JSON-LD usually has generic "ITV News" as author.
+  // Try to extract byline from body content first.
+  const byline = extractByline(article.body?.content ?? []);
+  if (byline) {
+    return [{ name: byline }];
+  }
+
+  if (jsonLd?.author) {
+    const a = jsonLd.author;
+    if (Array.isArray(a)) {
+      return a.map((auth: any) => ({ name: auth.name ?? "Unknown" }));
+    }
+    if (a.name && a.name !== "ITV News") {
+      return [{ name: a.name }];
+    }
+  }
+
+  return [];
+}
+
+/**
+ * ITV articles often have a byline paragraph like "By Deputy Content Editor Sophia Ankel"
+ * near the top of the body, typically right after an `hr` divider.
+ */
+function extractByline(content: any[]): string | null {
+  for (let i = 0; i < Math.min(content.length, 8); i++) {
+    const block = content[i];
+    if (block?.nodeType !== "paragraph") continue;
+    const text = getPlainText(block).trim();
+    const match = text.match(/^By\s+(?:[\w\s]+?Editor\s+)?(.+)/i);
+    if (match) {
+      return match[1]!.trim();
+    }
+  }
+  return null;
+}
+
+// --- Body conversion ---
+
+function buildBody(content: any[]): BodyComponent[] {
+  const components: BodyComponent[] = [];
+
+  for (const block of content) {
+    const component = convertBlock(block);
+    if (component) {
+      if (Array.isArray(component)) {
+        components.push(...component);
+      } else {
+        components.push(component);
+      }
+    }
+  }
+
+  return components;
+}
+
+function convertBlock(block: any): BodyComponent | BodyComponent[] | null {
+  switch (block.nodeType) {
+    case "paragraph":
+      return convertParagraph(block);
+    case "heading-2":
+      return convertHeading(block, 2);
+    case "heading-3":
+      return convertHeading(block, 3);
+    case "heading-4":
+      return convertHeading(block, 4);
+    case "hr":
+      return { type: "divider" };
+    case "unordered-list":
+      return convertList(block, "unordered");
+    case "ordered-list":
+      return convertList(block, "ordered");
+    case "blockquote":
+      return convertBlockquote(block);
+    case "embedded-entry-block":
+      return convertEmbeddedEntry(block);
+    default:
+      return null;
+  }
+}
+
+function convertParagraph(block: any): BodyComponent | null {
+  const html = renderRichText(block.content ?? []);
+  if (!html.trim()) return null;
+  return { type: "paragraph", text: html, format: "html" };
+}
+
+function convertHeading(block: any, level: number): BodyComponent {
+  const text = getPlainText(block);
+  return { type: "heading", level, text, format: "text" };
+}
+
+function convertList(
+  block: any,
+  style: "ordered" | "unordered",
+): BodyComponent {
+  const items: string[] = [];
+  for (const li of block.content ?? []) {
+    // Each list-item contains paragraph(s)
+    const parts: string[] = [];
+    for (const child of li.content ?? []) {
+      parts.push(renderRichText(child.content ?? []));
+    }
+    items.push(parts.join(" "));
+  }
+  return { type: "list", style, items };
+}
+
+function convertBlockquote(block: any): BodyComponent {
+  const parts: string[] = [];
+  for (const child of block.content ?? []) {
+    parts.push(getPlainText(child));
+  }
+  return { type: "blockquote", text: parts.join("\n") };
+}
+
+function convertEmbeddedEntry(
+  block: any,
+): BodyComponent | BodyComponent[] | null {
+  const contentType = block.contentType ?? block.data?.contentType;
+  const data = block.data ?? {};
+
+  switch (contentType) {
+    case "image":
+      return {
+        type: "image",
+        url: data.url,
+        caption: data.caption,
+        credit: data.credit,
+        altText: data.description ?? data.caption,
+      };
+    case "Brightcove":
+      return {
+        type: "video",
+        url: `https://players.brightcove.net/${data.accountId}/${data.playerId}_default/index.html?videoId=${data.id}`,
+        thumbnailUrl: data.poster?.url,
+        caption: data.guidance || undefined,
+      };
+    case "tile-links": {
+      const articles = data.articles ?? [];
+      return articles.map((a: any) => ({
+        type: "paragraph" as const,
+        text: `<a href="https://www.itv.com/news/${a.link}">${escapeHtml(a.shortTitle ?? a.title ?? "Related article")}</a>`,
+        format: "html" as const,
+      }));
+    }
+    case "podcast-show":
+      return {
+        type: "rawHtml",
+        html: `<!-- podcast: ${escapeHtml(data.title ?? data.id ?? "")} -->`,
+      };
+    default:
+      return null;
+  }
+}
+
+// --- Rich text rendering ---
+
+function renderRichText(nodes: any[]): string {
+  return nodes.map(renderNode).join("");
+}
+
+function renderNode(node: any): string {
+  if (node.nodeType === "text") {
+    let text = escapeHtml(node.value ?? "");
+    for (const mark of node.marks ?? []) {
+      switch (mark.type) {
+        case "bold":
+          text = `<strong>${text}</strong>`;
+          break;
+        case "italic":
+          text = `<em>${text}</em>`;
+          break;
+        case "underline":
+          text = `<u>${text}</u>`;
+          break;
+        case "code":
+          text = `<code>${text}</code>`;
+          break;
+      }
+    }
+    return text;
+  }
+
+  if (node.nodeType === "hyperlink") {
+    const href = escapeHtml(node.data?.uri ?? "");
+    const inner = renderRichText(node.content ?? []);
+    return `<a href="${href}">${inner}</a>`;
+  }
+
+  // Fallback: render children
+  return renderRichText(node.content ?? []);
+}
+
+function getPlainText(block: any): string {
+  if (!block) return "";
+  if (block.nodeType === "text") return block.value ?? "";
+  return (block.content ?? []).map(getPlainText).join("");
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function ensureIso(date: string): string {
+  if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(date)) {
+    if (!date.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(date)) {
+      return `${date}Z`;
+    }
+    return new Date(date).toISOString();
+  }
+  return new Date(date).toISOString();
+}
