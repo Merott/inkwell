@@ -12,7 +12,7 @@ async function main() {
     process.exit(1);
   }
 
-  const source = sources.find((s) => s.canHandle(url));
+  const source = sources.find((s) => s.matches(url));
   if (!source) {
     console.error(`No source found for URL: ${url}`);
     process.exit(1);

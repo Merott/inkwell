@@ -13,13 +13,17 @@ import type { ArticleSource } from "./types.ts";
 export const itvNewsSource: ArticleSource = {
   id: "itv-news",
 
-  canHandle(url: string): boolean {
+  matches(url: string): boolean {
     return /^https?:\/\/(www\.)?itv\.com\/news\//.test(url);
+  },
+
+  parse(html: string, url: string): Article {
+    return parse(html, url);
   },
 
   async scrape(url: string): Promise<Article> {
     const html = await fetchHtml(url);
-    return parse(html, url);
+    return this.parse(html, url);
   },
 };
 
