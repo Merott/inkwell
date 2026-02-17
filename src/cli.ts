@@ -1,34 +1,34 @@
-import { validateArticle } from "./schema/validate.ts";
-import * as sources from "./sources/index.ts";
-import type { ArticleSource } from "./sources/types.ts";
+import { validateArticle } from './schema/validate.ts'
+import * as sources from './sources/index.ts'
+import type { ArticleSource } from './sources/types.ts'
 
-const allSources: ArticleSource[] = Object.values(sources);
+const allSources: ArticleSource[] = Object.values(sources)
 
 async function main() {
-  const url = process.argv[2];
+  const url = process.argv[2]
 
   if (!url) {
-    console.error("Usage: bun run scrape <article-url>");
-    process.exit(1);
+    console.error('Usage: bun run scrape <article-url>')
+    process.exit(1)
   }
 
-  const source = allSources.find((s) => s.matches(url));
+  const source = allSources.find((s) => s.matches(url))
   if (!source) {
-    console.error(`No source found for URL: ${url}`);
-    process.exit(1);
+    console.error(`No source found for URL: ${url}`)
+    process.exit(1)
   }
 
-  console.error(`Scraping with ${source.id}...`);
-  const raw = await source.scrape(url);
+  console.error(`Scraping with ${source.id}...`)
+  const raw = await source.scrape(url)
 
-  console.error("Validating...");
-  const article = validateArticle(raw);
+  console.error('Validating...')
+  const article = validateArticle(raw)
 
-  console.log(JSON.stringify(article, null, 2));
-  console.error("Done.");
+  console.log(JSON.stringify(article, null, 2))
+  console.error('Done.')
 }
 
 main().catch((err) => {
-  console.error("Error:", err.message ?? err);
-  process.exit(1);
-});
+  console.error('Error:', err.message ?? err)
+  process.exit(1)
+})

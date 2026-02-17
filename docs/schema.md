@@ -148,10 +148,13 @@ The `format` field on text components indicates how inline formatting is express
 ```json
 {
   "type": "image",
-  "mediaRef": "media_001",
+  "url": "https://example.com/images/hero.jpg",
   "caption": "Description of what's shown",
   "credit": "Photo: John Smith / Agency",
-  "altText": "Accessible description"
+  "altText": "Accessible description",
+  "width": 2400,
+  "height": 1600,
+  "mediaRef": "media_001"
 }
 ```
 

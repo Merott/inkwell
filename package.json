@@ -5,10 +5,15 @@
   "private": true,
   "scripts": {
     "scrape": "bun src/cli.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "check": "biome check src/ tests/",
+    "format": "biome check --write src/ tests/",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@biomejs/biome": "^2.4.2",
+    "@types/bun": "latest",
+    "lefthook": "^2.1.1"
   },
   "peerDependencies": {
     "typescript": "^5"
