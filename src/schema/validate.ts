@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import type { Article } from './types.ts'
+import type { Article, DiscoveryResult } from './types.ts'
 
 const imageRefSchema = z.object({
   url: z.string().url(),
@@ -194,4 +194,24 @@ const articleSchema = z.object({
 
 export function validateArticle(data: unknown): Article {
   return articleSchema.parse(data) as Article
+}
+
+const discoveredArticleSchema = z.object({
+  url: z.string().url(),
+  title: z.string().min(1),
+  excerpt: z.string().optional(),
+  thumbnail: imageRefSchema.optional(),
+  publishedAt: z.string().datetime().optional(),
+  sourceId: z.string(),
+})
+
+const discoveryResultSchema = z.object({
+  articles: z.array(discoveredArticleSchema),
+  discoveredAt: z.string().datetime(),
+  sourceUrl: z.string().url(),
+  sourceId: z.string(),
+})
+
+export function validateDiscoveryResult(data: unknown): DiscoveryResult {
+  return discoveryResultSchema.parse(data) as DiscoveryResult
 }

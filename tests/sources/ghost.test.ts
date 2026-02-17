@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import type {
   Blockquote,
   CodeBlock,
+  DiscoveredArticle,
   EmbedComponent,
   Heading,
   ImageComponent,
@@ -9,13 +10,18 @@ import type {
   Paragraph,
   VideoComponent,
 } from '@/schema/types.ts'
-import { validateArticle } from '@/schema/validate.ts'
+import { validateArticle, validateDiscoveryResult } from '@/schema/validate.ts'
 import { ghostSource } from '@/sources/ghost.ts'
 
 const FIXTURE_URL = 'https://www.404media.co/test-ghost-article/'
+const HOMEPAGE_URL = 'https://www.404media.co/'
 
 const fixtureHtml = await Bun.file(
   `${import.meta.dir}/../fixtures/ghost/article.html`,
+).text()
+
+const homepageHtml = await Bun.file(
+  `${import.meta.dir}/../fixtures/ghost/homepage.html`,
 ).text()
 
 // --- matches ---
@@ -259,5 +265,93 @@ describe('parse', () => {
 
   it('has extractedAt as ISO datetime', () => {
     expect(article.extractedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
+  })
+})
+
+// --- discover ---
+
+describe('discover', () => {
+  const articles = ghostSource.discover!(homepageHtml, HOMEPAGE_URL)
+
+  it('extracts articles from homepage', () => {
+    expect(articles.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('deduplicates articles by URL', () => {
+    const urls = articles.map((a: DiscoveredArticle) => a.url)
+    expect(new Set(urls).size).toBe(urls.length)
+  })
+
+  it('returns absolute URLs', () => {
+    for (const article of articles) {
+      expect(article.url).toMatch(/^https?:\/\//)
+    }
+  })
+
+  it('extracts title from card', () => {
+    const aiSchool = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('AI-Powered Private School'),
+    )
+    expect(aiSchool).toBeDefined()
+  })
+
+  it('extracts excerpt when present', () => {
+    const aiSchool = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('AI-Powered Private School'),
+    )
+    expect(aiSchool!.excerpt).toContain('inner workings')
+  })
+
+  it('extracts thumbnail from card image', () => {
+    const aiSchool = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('AI-Powered Private School'),
+    )
+    expect(aiSchool!.thumbnail).toBeDefined()
+    expect(aiSchool!.thumbnail!.url).toContain('ai-school.jpg')
+  })
+
+  it('extracts publishedAt from time element', () => {
+    const aiSchool = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('AI-Powered Private School'),
+    )
+    expect(aiSchool!.publishedAt).toContain('2026-02-17')
+  })
+
+  it('handles cards without images', () => {
+    const blog = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('Unglamorous Work'),
+    )
+    expect(blog).toBeDefined()
+    expect(blog!.thumbnail).toBeUndefined()
+  })
+
+  it('handles cards without excerpts', () => {
+    const chips = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('Chip Shortage'),
+    )
+    expect(chips).toBeDefined()
+    expect(chips!.excerpt).toBeUndefined()
+  })
+
+  it('sets sourceId to publisher id', () => {
+    for (const article of articles) {
+      expect(article.sourceId).toBe('404-media')
+    }
+  })
+
+  it('passes discovery result validation', () => {
+    const result = {
+      articles,
+      discoveredAt: new Date().toISOString(),
+      sourceUrl: HOMEPAGE_URL,
+      sourceId: 'ghost',
+    }
+    expect(() => validateDiscoveryResult(result)).not.toThrow()
+  })
+})
+
+describe('homepageUrl', () => {
+  it('has homepageUrl defined', () => {
+    expect(ghostSource.homepageUrl).toBe('https://www.404media.co/')
   })
 })

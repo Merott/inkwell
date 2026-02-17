@@ -1,13 +1,23 @@
 import { describe, expect, it } from 'bun:test'
-import type { ImageComponent, Paragraph, RawHtml } from '@/schema/types.ts'
-import { validateArticle } from '@/schema/validate.ts'
+import type {
+  DiscoveredArticle,
+  ImageComponent,
+  Paragraph,
+  RawHtml,
+} from '@/schema/types.ts'
+import { validateArticle, validateDiscoveryResult } from '@/schema/validate.ts'
 import { itvNewsSource } from '@/sources/itv-news.ts'
 
 const FIXTURE_URL =
   'https://www.itv.com/news/2026-02-11/dawsons-creek-star-james-van-der-beek-has-died-aged-48'
+const HOMEPAGE_URL = 'https://www.itv.com/news'
 
 const fixtureHtml = await Bun.file(
   `${import.meta.dir}/../fixtures/itv-news/article.html`,
+).text()
+
+const homepageHtml = await Bun.file(
+  `${import.meta.dir}/../fixtures/itv-news/homepage.html`,
 ).text()
 
 // --- matches ---
@@ -172,5 +182,114 @@ describe('parse', () => {
 
   it('has extractedAt as ISO datetime', () => {
     expect(article.extractedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
+  })
+})
+
+// --- discover ---
+
+describe('discover', () => {
+  const articles = itvNewsSource.discover!(homepageHtml, HOMEPAGE_URL)
+
+  it('extracts articles from __NEXT_DATA__', () => {
+    expect(articles.length).toBeGreaterThanOrEqual(5)
+  })
+
+  it('deduplicates articles by URL', () => {
+    const urls = articles.map((a: DiscoveredArticle) => a.url)
+    expect(new Set(urls).size).toBe(urls.length)
+  })
+
+  it('returns absolute URLs', () => {
+    for (const article of articles) {
+      expect(article.url).toMatch(/^https?:\/\//)
+    }
+  })
+
+  it('filters out externalUrl items', () => {
+    const watchLinks = articles.filter((a: DiscoveredArticle) =>
+      a.url.includes('/watch/'),
+    )
+    expect(watchLinks).toHaveLength(0)
+  })
+
+  it('extracts title', () => {
+    const pm = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('PM to hold talks'),
+    )
+    expect(pm).toBeDefined()
+  })
+
+  it('extracts summary as excerpt', () => {
+    const pm = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('PM to hold talks'),
+    )
+    expect(pm!.excerpt).toContain('trade deal')
+  })
+
+  it('extracts thumbnail', () => {
+    const pm = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('PM to hold talks'),
+    )
+    expect(pm!.thumbnail).toBeDefined()
+    expect(pm!.thumbnail!.url).toContain('pm-eu-talks.jpg')
+  })
+
+  it('extracts thumbnail dimensions', () => {
+    const pm = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('PM to hold talks'),
+    )
+    expect(pm!.thumbnail!.width).toBe(1600)
+    expect(pm!.thumbnail!.height).toBe(900)
+  })
+
+  it('extracts publishedAt', () => {
+    const pm = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('PM to hold talks'),
+    )
+    expect(pm!.publishedAt).toContain('2026-02-17')
+  })
+
+  it('includes regional articles', () => {
+    const regional = articles.find((a: DiscoveredArticle) =>
+      a.url.includes('/anglia/'),
+    )
+    expect(regional).toBeDefined()
+  })
+
+  it('includes latest items (fields wrapper)', () => {
+    const jackson = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('Jesse Jackson'),
+    )
+    expect(jackson).toBeDefined()
+    expect(jackson!.url).toContain('/news/2026-02-17/jesse-jackson')
+  })
+
+  it('includes collection items', () => {
+    const weather = articles.find((a: DiscoveredArticle) =>
+      a.title.includes('Weather warning'),
+    )
+    expect(weather).toBeDefined()
+  })
+
+  it('sets sourceId to itv-news', () => {
+    for (const article of articles) {
+      expect(article.sourceId).toBe('itv-news')
+    }
+  })
+
+  it('passes discovery result validation', () => {
+    const result = {
+      articles,
+      discoveredAt: new Date().toISOString(),
+      sourceUrl: HOMEPAGE_URL,
+      sourceId: 'itv-news',
+    }
+    expect(() => validateDiscoveryResult(result)).not.toThrow()
+  })
+})
+
+describe('homepageUrl', () => {
+  it('has homepageUrl defined', () => {
+    expect(itvNewsSource.homepageUrl).toBe('https://www.itv.com/news')
   })
 })

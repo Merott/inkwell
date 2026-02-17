@@ -194,3 +194,19 @@ export interface Paywall {
   previewBoundary?: number
   accessTier?: string
 }
+
+export interface DiscoveredArticle {
+  url: string
+  title: string
+  excerpt?: string
+  thumbnail?: ImageRef
+  publishedAt?: string
+  sourceId: string
+}
+
+export interface DiscoveryResult {
+  articles: DiscoveredArticle[]
+  discoveredAt: string
+  sourceUrl: string
+  sourceId: string
+}

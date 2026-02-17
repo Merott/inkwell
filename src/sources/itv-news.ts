@@ -4,6 +4,7 @@ import type {
   Article,
   Author,
   BodyComponent,
+  DiscoveredArticle,
   ImageRef,
   Metadata,
   Source,
@@ -26,8 +27,12 @@ interface ContentfulNode {
   contentType?: string
 }
 
+const ITV_HOMEPAGE_URL = 'https://www.itv.com/news'
+
 export const itvNewsSource: ArticleSource = {
   id: 'itv-news',
+  homepageUrl: ITV_HOMEPAGE_URL,
+  publishers: [{ id: 'itv-news', homepageUrl: ITV_HOMEPAGE_URL }],
 
   matches(url: string): boolean {
     return /^https?:\/\/(www\.)?itv\.com\/news\//.test(url)
@@ -40,6 +45,16 @@ export const itvNewsSource: ArticleSource = {
   async scrape(url: string): Promise<Article> {
     const html = await fetchHtml(url)
     return this.parse(html, url)
+  },
+
+  discover(html: string, _url: string): DiscoveredArticle[] {
+    return discoverFromHomepage(html)
+  },
+
+  async discoverArticles(url?: string): Promise<DiscoveredArticle[]> {
+    const targetUrl = url ?? ITV_HOMEPAGE_URL
+    const html = await fetchHtml(targetUrl)
+    return discoverFromHomepage(html)
   },
 }
 
@@ -83,6 +98,110 @@ async function fetchHtml(url: string): Promise<string> {
   } finally {
     await browser.close()
   }
+}
+
+// --- Discovery ---
+
+/** Matches ITV article URLs: news/YYYY-MM-DD/slug or news/region/YYYY-MM-DD/slug */
+const ITV_ARTICLE_LINK_PATTERN =
+  /^news\/(?:[\w-]+\/)*\d{4}-\d{2}-\d{2}\/[\w-]+$/
+
+function discoverFromHomepage(html: string): DiscoveredArticle[] {
+  const $ = cheerio.load(html)
+  const nextData = extractNextData($)
+  if (!nextData) return discoverFromDom($)
+
+  const pageProps = nextData.props?.pageProps
+  if (!pageProps) return discoverFromDom($)
+
+  const seen = new Set<string>()
+  const articles: DiscoveredArticle[] = []
+
+  function addItem(item: {
+    title?: string
+    link?: string
+    summary?: string
+    displayDate?: string
+    externalUrl?: boolean
+    image?: { url?: string; width?: number; height?: number }
+  }) {
+    if (!item.title || !item.link) return
+    if (item.externalUrl) return
+    if (!ITV_ARTICLE_LINK_PATTERN.test(item.link)) return
+
+    const absoluteUrl = `https://www.itv.com/${item.link}`
+    if (seen.has(absoluteUrl)) return
+    seen.add(absoluteUrl)
+
+    const thumbnail: ImageRef | undefined = item.image?.url
+      ? {
+          url: item.image.url,
+          width: item.image.width,
+          height: item.image.height,
+        }
+      : undefined
+
+    articles.push({
+      url: absoluteUrl,
+      title: item.title,
+      excerpt: item.summary || undefined,
+      thumbnail,
+      publishedAt: item.displayDate ? ensureIso(item.displayDate) : undefined,
+      sourceId: 'itv-news',
+    })
+  }
+
+  // topStories, popular, collections — standard shape
+  for (const section of ['topStories', 'popular'] as const) {
+    for (const item of pageProps[section]?.items ?? []) {
+      addItem(item)
+    }
+  }
+
+  for (const collection of pageProps.collections ?? []) {
+    for (const item of collection.items ?? []) {
+      addItem(item)
+    }
+  }
+
+  // latest — wrapped in { fields: { ... } }, link omits "news/" prefix
+  for (const wrapper of pageProps.latest?.items ?? []) {
+    const fields = wrapper.fields
+    if (!fields) continue
+    addItem({
+      ...fields,
+      link: fields.link ? `news/${fields.link}` : undefined,
+    })
+  }
+
+  return articles.length > 0 ? articles : discoverFromDom($)
+}
+
+/** Fallback: extract article URLs from DOM anchor tags */
+function discoverFromDom($: cheerio.CheerioAPI): DiscoveredArticle[] {
+  const seen = new Set<string>()
+  const articles: DiscoveredArticle[] = []
+
+  $('a[href]').each((_, el) => {
+    const href = $(el).attr('href')
+    if (!href) return
+
+    const match = href.match(/\/news\/(?:[\w-]+\/)*(\d{4}-\d{2}-\d{2}\/[\w-]+)/)
+    if (!match) return
+
+    const absoluteUrl = new URL(href, 'https://www.itv.com').href
+    if (seen.has(absoluteUrl)) return
+    seen.add(absoluteUrl)
+
+    const title = $(el).text().trim()
+    articles.push({
+      url: absoluteUrl,
+      title: title || 'Untitled',
+      sourceId: 'itv-news',
+    })
+  })
+
+  return articles
 }
 
 // --- Parse ---

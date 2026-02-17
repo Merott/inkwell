@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "scrape": "bun src/cli.ts",
+    "scrape": "bun src/cli.ts scrape",
+    "discover": "bun src/cli.ts discover",
     "test": "bun test",
     "check": "biome check src/ tests/",
     "format": "biome check --write src/ tests/",

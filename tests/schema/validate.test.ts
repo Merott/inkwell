@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import type { Article } from '@/schema/types.ts'
-import { validateArticle } from '@/schema/validate.ts'
+import type { Article, DiscoveryResult } from '@/schema/types.ts'
+import { validateArticle, validateDiscoveryResult } from '@/schema/validate.ts'
 
 function validArticle(): Article {
   return {
@@ -101,5 +101,88 @@ describe('validateArticle', () => {
       { type: 'rawHtml', html: '<div>raw</div>' },
     ]
     expect(() => validateArticle(a)).not.toThrow()
+  })
+})
+
+function validDiscoveryResult(): DiscoveryResult {
+  return {
+    articles: [
+      {
+        url: 'https://example.com/article-1',
+        title: 'Test Article',
+        sourceId: 'test',
+      },
+    ],
+    discoveredAt: new Date().toISOString(),
+    sourceUrl: 'https://example.com/',
+    sourceId: 'test',
+  }
+}
+
+describe('validateDiscoveryResult', () => {
+  it('accepts a valid discovery result', () => {
+    expect(() => validateDiscoveryResult(validDiscoveryResult())).not.toThrow()
+  })
+
+  it('accepts articles with all optional fields', () => {
+    const r = validDiscoveryResult()
+    r.articles = [
+      {
+        url: 'https://example.com/article-1',
+        title: 'Full Article',
+        excerpt: 'An excerpt from the article.',
+        thumbnail: {
+          url: 'https://example.com/thumb.jpg',
+          width: 800,
+          height: 450,
+        },
+        publishedAt: '2026-02-17T10:30:00.000Z',
+        sourceId: 'test',
+      },
+    ]
+    expect(() => validateDiscoveryResult(r)).not.toThrow()
+  })
+
+  it('rejects article with invalid URL', () => {
+    const r = validDiscoveryResult()
+    r.articles[0]!.url = 'not-a-url'
+    expect(() => validateDiscoveryResult(r)).toThrow()
+  })
+
+  it('rejects article with empty title', () => {
+    const r = validDiscoveryResult()
+    r.articles[0]!.title = ''
+    expect(() => validateDiscoveryResult(r)).toThrow()
+  })
+
+  it('rejects invalid discoveredAt datetime', () => {
+    const r = validDiscoveryResult()
+    r.discoveredAt = 'not-a-date'
+    expect(() => validateDiscoveryResult(r)).toThrow()
+  })
+
+  it('rejects invalid sourceUrl', () => {
+    const r = validDiscoveryResult()
+    r.sourceUrl = 'not-a-url'
+    expect(() => validateDiscoveryResult(r)).toThrow()
+  })
+
+  it('accepts empty articles array', () => {
+    const r = validDiscoveryResult()
+    r.articles = []
+    expect(() => validateDiscoveryResult(r)).not.toThrow()
+  })
+
+  it('rejects article with invalid publishedAt', () => {
+    const r = validDiscoveryResult()
+    r.articles[0]!.publishedAt = 'bad-date'
+    expect(() => validateDiscoveryResult(r)).toThrow()
+  })
+
+  it('returns typed DiscoveryResult', () => {
+    const result = validateDiscoveryResult(validDiscoveryResult())
+    expect(result.sourceId).toBe('test')
+    expect(result.articles).toHaveLength(1)
+    expect(result.articles[0]!.title).toBe('Test Article')
   })
 })

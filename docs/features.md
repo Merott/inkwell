@@ -76,7 +76,19 @@ Extraction cannot be a "blunt instrument" — each publisher needs tight guardra
 
 ## Content Discovery
 
-Inkwell supports two ingestion modes:
+Inkwell supports multiple discovery modes:
+
+### Homepage Discovery
+
+For publishers without RSS feeds or APIs, Inkwell polls their homepage to discover articles. Each source implements CMS-aware extraction to find article cards and extract metadata.
+
+**Currently supported:**
+- **Ghost** (404 Media) — CSS selector-based extraction of `.post-card` elements. Extracts title, URL, excerpt, thumbnail (`data-src`), and publish date from card markup. Deduplicates hero/grid duplicates.
+- **ITV News** — Primary: extracts from `__NEXT_DATA__` JSON (Next.js SSR props) across `topStories`, `popular`, `collections`, and `latest` sections. Fallback: DOM-based extraction of `<a href>` matching ITV article URL patterns. Filters external/watch URLs.
+
+**Scope:** Single homepage page per poll. Pagination (Ghost `/page/2/`, ITV infinite scroll) is deferred.
+
+**CLI:** `bun run discover <homepage-url | publisher-id>` (e.g. `discover 404-media`, `discover itv-news`)
 
 ### Poll Mode (Scheduled)
 - Checks RSS feeds, API endpoints, or sitemaps/homepages on a configurable schedule (frequency TBD — see [assumptions](assumptions.md#high-risk))

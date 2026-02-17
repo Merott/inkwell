@@ -4,6 +4,7 @@ import type {
   Article,
   Author,
   BodyComponent,
+  DiscoveredArticle,
   ImageRef,
   Metadata,
   Source,
@@ -17,12 +18,25 @@ import {
 } from './shared/extract.ts'
 import type { ArticleSource } from './types.ts'
 
-const GHOST_PUBLISHERS: { id: string; pattern: RegExp }[] = [
-  { id: '404-media', pattern: /^https?:\/\/(www\.)?404media\.co\// },
+const GHOST_PUBLISHERS: {
+  id: string
+  pattern: RegExp
+  homepageUrl: string
+}[] = [
+  {
+    id: '404-media',
+    pattern: /^https?:\/\/(www\.)?404media\.co\//,
+    homepageUrl: 'https://www.404media.co/',
+  },
 ]
 
 export const ghostSource: ArticleSource = {
   id: 'ghost',
+  homepageUrl: GHOST_PUBLISHERS[0]?.homepageUrl,
+  publishers: GHOST_PUBLISHERS.map((p) => ({
+    id: p.id,
+    homepageUrl: p.homepageUrl,
+  })),
 
   matches(url: string): boolean {
     return GHOST_PUBLISHERS.some((p) => p.pattern.test(url))
@@ -39,6 +53,138 @@ export const ghostSource: ArticleSource = {
     const html = await res.text()
     return this.parse(html, url)
   },
+
+  discover(html: string, url: string): DiscoveredArticle[] {
+    return discoverFromHomepage(html, url)
+  },
+
+  async discoverArticles(url?: string): Promise<DiscoveredArticle[]> {
+    const targetUrl = url ?? this.homepageUrl
+    if (!targetUrl) throw new Error('No homepage URL configured')
+    const res = await fetch(targetUrl)
+    if (!res.ok)
+      throw new Error(`Fetch failed: ${res.status} ${res.statusText}`)
+    const html = await res.text()
+    return discoverFromHomepage(html, targetUrl)
+  },
+}
+
+// --- Discovery ---
+
+const CARD_SELECTORS = ['.post-card']
+
+const CARD_TITLE_SELECTORS = ['.post-card__title > a', '.post-card__title']
+const CARD_LINK_SELECTORS = [
+  '.post-card__title > a',
+  'a.post-card__image',
+  'h4 a',
+]
+const CARD_EXCERPT_SELECTORS = ['.post-card__excerpt']
+const CARD_IMAGE_SELECTORS = [
+  '.post-card__image img[data-src]',
+  '.post-card__image img[src]',
+]
+const CARD_DATE_SELECTORS = ['time.byline__date[datetime]', 'time[datetime]']
+
+function discoverFromHomepage(html: string, url: string): DiscoveredArticle[] {
+  const $ = cheerio.load(html)
+  const publisher = resolvePublisherForUrl(url)
+  const seen = new Set<string>()
+  const articles: DiscoveredArticle[] = []
+
+  for (const sel of CARD_SELECTORS) {
+    $(sel).each((_, el) => {
+      const $card = $(el)
+      const article = extractCard($, $card, url, publisher.id)
+      if (article && !seen.has(article.url)) {
+        seen.add(article.url)
+        articles.push(article)
+      }
+    })
+  }
+
+  return articles
+}
+
+function resolvePublisherForUrl(url: string) {
+  const match = GHOST_PUBLISHERS.find((p) => p.pattern.test(url))
+  if (!match) throw new Error(`No Ghost publisher for URL: ${url}`)
+  return match
+}
+
+function extractCard(
+  $: cheerio.CheerioAPI,
+  $card: cheerio.Cheerio<Element>,
+  baseUrl: string,
+  publisherId: string,
+): DiscoveredArticle | null {
+  const link = findFirst($card, CARD_LINK_SELECTORS, ($el) => $el.attr('href'))
+  if (!link) return null
+
+  const absoluteUrl = new URL(link, baseUrl).href
+
+  const title = findFirst($card, CARD_TITLE_SELECTORS, ($el) =>
+    $el.text().trim(),
+  )
+  if (!title) return null
+
+  const excerpt =
+    findFirst($card, CARD_EXCERPT_SELECTORS, ($el) => $el.text().trim()) ||
+    undefined
+
+  const thumbnail = extractCardImage($card, baseUrl)
+  const publishedAt = extractCardDate($card)
+
+  return {
+    url: absoluteUrl,
+    title,
+    excerpt,
+    thumbnail,
+    publishedAt,
+    sourceId: publisherId,
+  }
+}
+
+function findFirst(
+  $card: cheerio.Cheerio<Element>,
+  selectors: string[],
+  extract: ($el: cheerio.Cheerio<Element>) => string | undefined,
+): string | undefined {
+  for (const sel of selectors) {
+    const $el = $card.find(sel).first()
+    if ($el.length) {
+      const value = extract($el)
+      if (value) return value
+    }
+  }
+  return undefined
+}
+
+function extractCardImage(
+  $card: cheerio.Cheerio<Element>,
+  baseUrl: string,
+): ImageRef | undefined {
+  for (const sel of CARD_IMAGE_SELECTORS) {
+    const $img = $card.find(sel).first()
+    if ($img.length) {
+      const rawUrl = $img.attr('data-src') ?? $img.attr('src')
+      if (rawUrl && !rawUrl.includes('placeholder')) {
+        return { url: new URL(rawUrl, baseUrl).href }
+      }
+    }
+  }
+  return undefined
+}
+
+function extractCardDate($card: cheerio.Cheerio<Element>): string | undefined {
+  for (const sel of CARD_DATE_SELECTORS) {
+    const $time = $card.find(sel).first()
+    if ($time.length) {
+      const datetime = $time.attr('datetime')
+      if (datetime) return ensureIso(datetime)
+    }
+  }
+  return undefined
 }
 
 // --- Parse ---

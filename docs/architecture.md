@@ -14,27 +14,27 @@ Inkwell does **not** transform content into Apple News Format or any other syndi
 ## Pipeline Overview
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                        Inkwell                          │
-│                                                         │
-│  ┌──────────┐   ┌─────────┐   ┌───────────┐   ┌─────┐ │
-│  │  Source   │──▶│ Content │──▶│  Parser / │──▶│Valid-│ │
-│  │ Resolver  │   │ Fetcher │   │ Extractor │   │ator │ │
-│  └──────────┘   └─────────┘   └───────────┘   └─────┘ │
-│       ▲                                           │     │
-│       │                                           ▼     │
-│  ┌──────────┐                              ┌──────────┐ │
-│  │Publisher │                              │Intermediary│ │
-│  │  Config  │                              │   JSON    │ │
-│  └──────────┘                              └──────────┘ │
-└─────────────────────────────────────────────────────────┘
-                                                  │
-                                                  ▼
-                                    ┌───────────────────────┐
-                                    │  Downstream Services   │
-                                    │  (ANF Transformer,     │
-                                    │   RSS Generator, etc.) │
-                                    └───────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                            Inkwell                               │
+│                                                                  │
+│  ┌──────────┐   ┌──────────┐   ┌─────────┐   ┌────────┐  ┌───┐ │
+│  │  Source   │──▶│ Discovery│──▶│ Content │──▶│ Parser/│──▶│Val│ │
+│  │ Resolver  │   │(optional)│   │ Fetcher │   │Extract.│  │   │ │
+│  └──────────┘   └──────────┘   └─────────┘   └────────┘  └───┘ │
+│       ▲                                                    │    │
+│       │                                                    ▼    │
+│  ┌──────────┐                                       ┌──────────┐│
+│  │Publisher │                                       │Intermediary│
+│  │  Config  │                                       │   JSON    ││
+│  └──────────┘                                       └──────────┘│
+└──────────────────────────────────────────────────────────────────┘
+                                                          │
+                                                          ▼
+                                            ┌───────────────────────┐
+                                            │  Downstream Services   │
+                                            │  (ANF Transformer,     │
+                                            │   RSS Generator, etc.) │
+                                            └───────────────────────┘
 ```
 
 ## Components
@@ -51,6 +51,22 @@ Determines the best ingestion strategy for a given publisher.
 - Select ingestion method: CMS API, RSS/Atom feed, HTML scraping, or a combination
 - Handle fallback logic (e.g., if API is unavailable, fall back to RSS + scrape)
 - Resolve feed URLs, API endpoints, and entry points for scraping
+
+### Article Discovery
+
+Discovers which articles exist on a publisher's homepage. Optional step — for publishers without RSS feeds or API-based discovery.
+
+**Inputs**: homepage URL (or pre-fetched HTML)
+
+**Outputs**: `DiscoveredArticle[]` — lightweight article references (URL, title, excerpt, thumbnail, date)
+
+**Responsibilities**:
+- CMS-aware extraction of article cards from homepage HTML
+- Deduplication by URL
+- Resolve relative URLs to absolute
+- Filter non-article links (tag pages, about pages, external links)
+
+Each source implements `discover(html, url)` (pure) and `discoverArticles(url?)` (fetch + discover), mirroring the `parse`/`scrape` pattern. See [ADR-004](decisions/004-homepage-discovery.md).
 
 ### Content Fetcher
 
