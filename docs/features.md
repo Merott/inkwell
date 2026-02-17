@@ -90,10 +90,12 @@ For publishers without RSS feeds or APIs, Inkwell polls their homepage to discov
 
 **CLI:** `bun run discover <homepage-url | publisher-id>` (e.g. `discover 404-media`, `discover itv-news`)
 
-### Poll Mode (Scheduled)
-- Checks RSS feeds, API endpoints, or sitemaps/homepages on a configurable schedule (frequency TBD — see [assumptions](assumptions.md#high-risk))
-- Detects new and updated articles
-- Suitable for most publishers
+### Poll Mode (Implemented)
+- `bun run poll` runs the full discover → scrape → write cycle for all enabled publishers
+- Tracks state in SQLite (`data/inkwell.db`) — articles progress through `discovered` → `scraped` | `failed`
+- Idempotent: re-running skips already-scraped articles, retries failed ones
+- Writes validated JSON to `output/<publisherId>/<date>-<slug>.json`
+- Scheduling (cron/interval) deferred — currently manual invocation
 
 ### Push Mode (Real-Time)
 - Receives webhook or API notifications from publishers or their CMS

@@ -183,6 +183,6 @@ describe('validateDiscoveryResult', () => {
     const result = validateDiscoveryResult(validDiscoveryResult())
     expect(result.sourceId).toBe('test')
     expect(result.articles).toHaveLength(1)
-    expect(result.articles[0]!.title).toBe('Test Article')
+    expect(result.articles[0]?.title).toBe('Test Article')
   })
 })

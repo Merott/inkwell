@@ -44,10 +44,10 @@ describe('matches', () => {
   })
 })
 
-// --- parse ---
+// --- parseArticle ---
 
-describe('parse', () => {
-  const article = ghostSource.parse(fixtureHtml, FIXTURE_URL)
+describe('parseArticle', () => {
+  const article = ghostSource.parseArticle(fixtureHtml, FIXTURE_URL)
 
   it('passes schema validation', () => {
     expect(() => validateArticle(article)).not.toThrow()
@@ -268,10 +268,10 @@ describe('parse', () => {
   })
 })
 
-// --- discover ---
+// --- parseArticles ---
 
-describe('discover', () => {
-  const articles = ghostSource.discover!(homepageHtml, HOMEPAGE_URL)
+describe('parseArticles', () => {
+  const articles = ghostSource.parseArticles?.(homepageHtml, HOMEPAGE_URL)
 
   it('extracts articles from homepage', () => {
     expect(articles.length).toBeGreaterThanOrEqual(3)
@@ -299,22 +299,22 @@ describe('discover', () => {
     const aiSchool = articles.find((a: DiscoveredArticle) =>
       a.title.includes('AI-Powered Private School'),
     )
-    expect(aiSchool!.excerpt).toContain('inner workings')
+    expect(aiSchool?.excerpt).toContain('inner workings')
   })
 
   it('extracts thumbnail from card image', () => {
     const aiSchool = articles.find((a: DiscoveredArticle) =>
       a.title.includes('AI-Powered Private School'),
     )
-    expect(aiSchool!.thumbnail).toBeDefined()
-    expect(aiSchool!.thumbnail!.url).toContain('ai-school.jpg')
+    expect(aiSchool?.thumbnail).toBeDefined()
+    expect(aiSchool?.thumbnail?.url).toContain('ai-school.jpg')
   })
 
   it('extracts publishedAt from time element', () => {
     const aiSchool = articles.find((a: DiscoveredArticle) =>
       a.title.includes('AI-Powered Private School'),
     )
-    expect(aiSchool!.publishedAt).toContain('2026-02-17')
+    expect(aiSchool?.publishedAt).toContain('2026-02-17')
   })
 
   it('handles cards without images', () => {
@@ -322,7 +322,7 @@ describe('discover', () => {
       a.title.includes('Unglamorous Work'),
     )
     expect(blog).toBeDefined()
-    expect(blog!.thumbnail).toBeUndefined()
+    expect(blog?.thumbnail).toBeUndefined()
   })
 
   it('handles cards without excerpts', () => {
@@ -330,7 +330,7 @@ describe('discover', () => {
       a.title.includes('Chip Shortage'),
     )
     expect(chips).toBeDefined()
-    expect(chips!.excerpt).toBeUndefined()
+    expect(chips?.excerpt).toBeUndefined()
   })
 
   it('sets sourceId to publisher id', () => {

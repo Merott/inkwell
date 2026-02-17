@@ -10,8 +10,10 @@ export interface ArticleSource {
   homepageUrl?: string
   publishers?: Publisher[]
   matches(url: string): boolean
-  parse(html: string, url: string): Article
-  scrape(url: string): Promise<Article>
-  discover?(html: string, url: string): DiscoveredArticle[]
-  discoverArticles?(url?: string): Promise<DiscoveredArticle[]>
+  parseArticle(html: string, url: string): Article
+  scrapeArticle(url: string): Promise<Article>
+  parseArticles?(html: string, url: string): DiscoveredArticle[]
+  scrapeArticles?(url?: string): Promise<DiscoveredArticle[]>
+  init?(): Promise<void>
+  dispose?(): Promise<void>
 }

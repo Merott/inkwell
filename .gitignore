@@ -41,3 +41,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Raw homepage snapshots (reference only)
 **/homepage-raw.html
+
+# Pipeline output and state
+output/
+data/

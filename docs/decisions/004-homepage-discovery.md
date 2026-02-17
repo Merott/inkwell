@@ -14,11 +14,11 @@ Inkwell can extract articles from individual URLs (`scrape`), but has no way to 
 
 We extended the `ArticleSource` interface with optional methods rather than creating a separate discovery abstraction:
 
-- `discover(html, url)` — pure function: HTML in, `DiscoveredArticle[]` out
-- `discoverArticles(url?)` — async wrapper: fetches homepage, calls `discover()`
+- `parseArticles(html, url)` — pure function: HTML in, `DiscoveredArticle[]` out
+- `scrapeArticles(url?)` — async wrapper: fetches homepage, calls `parseArticles()`
 - `homepageUrl` — optional property for the publisher's default homepage
 
-This mirrors the existing `parse`/`scrape` split: pure extraction vs. fetch+extract.
+This mirrors the existing `parseArticle`/`scrapeArticle` split: pure extraction vs. fetch+extract.
 
 **Why optional?** Not all sources need homepage discovery (some may use RSS or API). Making methods optional avoids forcing all sources to implement a no-op.
 

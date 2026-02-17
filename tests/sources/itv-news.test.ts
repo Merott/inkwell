@@ -46,10 +46,10 @@ describe('matches', () => {
   })
 })
 
-// --- parse ---
+// --- parseArticle ---
 
-describe('parse', () => {
-  const article = itvNewsSource.parse(fixtureHtml, FIXTURE_URL)
+describe('parseArticle', () => {
+  const article = itvNewsSource.parseArticle(fixtureHtml, FIXTURE_URL)
 
   it('passes schema validation', () => {
     expect(() => validateArticle(article)).not.toThrow()
@@ -185,10 +185,10 @@ describe('parse', () => {
   })
 })
 
-// --- discover ---
+// --- parseArticles ---
 
-describe('discover', () => {
-  const articles = itvNewsSource.discover!(homepageHtml, HOMEPAGE_URL)
+describe('parseArticles', () => {
+  const articles = itvNewsSource.parseArticles?.(homepageHtml, HOMEPAGE_URL)
 
   it('extracts articles from __NEXT_DATA__', () => {
     expect(articles.length).toBeGreaterThanOrEqual(5)
@@ -223,30 +223,30 @@ describe('discover', () => {
     const pm = articles.find((a: DiscoveredArticle) =>
       a.title.includes('PM to hold talks'),
     )
-    expect(pm!.excerpt).toContain('trade deal')
+    expect(pm?.excerpt).toContain('trade deal')
   })
 
   it('extracts thumbnail', () => {
     const pm = articles.find((a: DiscoveredArticle) =>
       a.title.includes('PM to hold talks'),
     )
-    expect(pm!.thumbnail).toBeDefined()
-    expect(pm!.thumbnail!.url).toContain('pm-eu-talks.jpg')
+    expect(pm?.thumbnail).toBeDefined()
+    expect(pm?.thumbnail?.url).toContain('pm-eu-talks.jpg')
   })
 
   it('extracts thumbnail dimensions', () => {
     const pm = articles.find((a: DiscoveredArticle) =>
       a.title.includes('PM to hold talks'),
     )
-    expect(pm!.thumbnail!.width).toBe(1600)
-    expect(pm!.thumbnail!.height).toBe(900)
+    expect(pm?.thumbnail?.width).toBe(1600)
+    expect(pm?.thumbnail?.height).toBe(900)
   })
 
   it('extracts publishedAt', () => {
     const pm = articles.find((a: DiscoveredArticle) =>
       a.title.includes('PM to hold talks'),
     )
-    expect(pm!.publishedAt).toContain('2026-02-17')
+    expect(pm?.publishedAt).toContain('2026-02-17')
   })
 
   it('includes regional articles', () => {
@@ -261,7 +261,7 @@ describe('discover', () => {
       a.title.includes('Jesse Jackson'),
     )
     expect(jackson).toBeDefined()
-    expect(jackson!.url).toContain('/news/2026-02-17/jesse-jackson')
+    expect(jackson?.url).toContain('/news/2026-02-17/jesse-jackson')
   })
 
   it('includes collection items', () => {

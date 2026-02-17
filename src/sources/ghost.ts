@@ -42,23 +42,23 @@ export const ghostSource: ArticleSource = {
     return GHOST_PUBLISHERS.some((p) => p.pattern.test(url))
   },
 
-  parse(html: string, url: string): Article {
+  parseArticle(html: string, url: string): Article {
     return parse(html, url)
   },
 
-  async scrape(url: string): Promise<Article> {
+  async scrapeArticle(url: string): Promise<Article> {
     const res = await fetch(url)
     if (!res.ok)
       throw new Error(`Fetch failed: ${res.status} ${res.statusText}`)
     const html = await res.text()
-    return this.parse(html, url)
+    return this.parseArticle(html, url)
   },
 
-  discover(html: string, url: string): DiscoveredArticle[] {
+  parseArticles(html: string, url: string): DiscoveredArticle[] {
     return discoverFromHomepage(html, url)
   },
 
-  async discoverArticles(url?: string): Promise<DiscoveredArticle[]> {
+  async scrapeArticles(url?: string): Promise<DiscoveredArticle[]> {
     const targetUrl = url ?? this.homepageUrl
     if (!targetUrl) throw new Error('No homepage URL configured')
     const res = await fetch(targetUrl)
@@ -113,7 +113,7 @@ function resolvePublisherForUrl(url: string) {
 }
 
 function extractCard(
-  $: cheerio.CheerioAPI,
+  _$: cheerio.CheerioAPI,
   $card: cheerio.Cheerio<Element>,
   baseUrl: string,
   publisherId: string,

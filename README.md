@@ -48,6 +48,8 @@ The core extraction pipeline works end-to-end for two source types:
 | [404 Media](https://www.404media.co/) | Ghost | HTTP fetch + Cheerio |
 | [ITV News](https://www.itv.com/news/) | Contentful (Next.js) | Playwright + Cheerio |
 
+An orchestration layer (`poll` command) runs the full discover → scrape → write cycle with SQLite state tracking, so the same command can run repeatedly without re-scraping articles.
+
 ## Getting started
 
 **Prerequisites:** [Bun](https://bun.sh/) v1.3+
@@ -70,6 +72,24 @@ bun run scrape <article-url>
 
 Outputs validated intermediary JSON to stdout.
 
+### Discover articles from a publisher's homepage
+
+```sh
+bun run discover <homepage-url | publisher-id>
+```
+
+### Poll: discover + scrape pipeline
+
+```sh
+# Poll all enabled publishers
+bun run poll
+
+# Poll a single publisher
+bun run poll --publisher 404-media
+```
+
+Discovers new articles, scrapes them, writes validated JSON to `output/<publisherId>/`, and tracks state in `data/inkwell.db`. Running the same command again skips already-scraped articles.
+
 ### Run tests
 
 ```sh
@@ -81,6 +101,9 @@ bun test
 | Script | Description |
 |---|---|
 | `bun run scrape <url>` | Scrape an article and output JSON |
+| `bun run discover <target>` | Discover articles from a homepage or publisher |
+| `bun run poll` | Full discover + scrape pipeline (all publishers) |
+| `bun run poll --publisher <id>` | Poll a single publisher |
 | `bun test` | Run all tests |
 | `bun run check` | Lint and format check (biome) |
 | `bun run format` | Auto-fix lint and formatting |
@@ -91,7 +114,8 @@ A pre-commit hook (via [lefthook](https://github.com/evilmartians/lefthook)) run
 
 ```
 src/
-  cli.ts                  CLI entry point
+  cli.ts                  CLI entry point (scrape, discover, poll commands)
+  publishers.ts          Publisher registry (validated with Zod)
   schema/
     types.ts              Intermediary JSON type definitions
     validate.ts           Zod schema validation
@@ -99,17 +123,29 @@ src/
     ghost.ts              Ghost CMS parser
     itv-news.ts           ITV News (Contentful) parser
     shared/extract.ts     Shared extraction utilities (JSON-LD, OG tags, etc.)
+    shared/playwright.ts  Shared Playwright browser lifecycle (for headed sources)
     types.ts              ArticleSource interface
-    index.ts              Source registry
+    index.ts              Source registry + getSourceById helper
+  pipeline/
+    poll.ts               Poll orchestrator (discover → scrape → write)
+    output.ts             Article JSON file writer
+    db/
+      schema.ts           Drizzle ORM table definitions
+      client.ts           SQLite connection (bun:sqlite + Drizzle)
+      queries.ts          Typed query helpers (insert, status transitions)
 tests/
   fixtures/               HTML fixtures for parser tests
+  pipeline/               Pipeline component tests
 docs/
   vision.md               Product vision and mission
   architecture.md         System architecture overview
   schema.md               Intermediary JSON schema documentation
   features.md             Feature roadmap
   assumptions.md          Working assumptions and risks
+  plans/                  Design documents
   decisions/              Architecture Decision Records (ADRs)
+output/                   Generated article JSON (gitignored)
+data/                     SQLite database (gitignored)
 ```
 
 ## Further reading

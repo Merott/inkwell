@@ -1,5 +1,4 @@
 import * as cheerio from 'cheerio'
-import { chromium } from 'playwright'
 import type {
   Article,
   Author,
@@ -15,6 +14,7 @@ import {
   extractJsonLd,
   extractOgTags,
 } from './shared/extract.ts'
+import { createPlaywrightFetcher } from './shared/playwright.ts'
 import type { ArticleSource } from './types.ts'
 
 interface ContentfulNode {
@@ -29,6 +29,32 @@ interface ContentfulNode {
 
 const ITV_HOMEPAGE_URL = 'https://www.itv.com/news'
 
+const fetcher = createPlaywrightFetcher({ headless: false })
+
+async function fetchHtml(url: string) {
+  return fetcher.fetchHtml(url, async (page) => {
+    // Wait for Next.js data to be present
+    await page.waitForFunction(
+      () =>
+        (document.getElementById('__NEXT_DATA__')?.textContent?.length ?? 0) >
+        0,
+      { timeout: 10_000 },
+    )
+
+    // Dismiss cookie consent (ITV uses Cassie widget)
+    try {
+      const acceptBtn = page.locator(
+        '.cassie-pre-banner button:has-text("Accept")',
+      )
+      if (await acceptBtn.isVisible({ timeout: 2_000 })) {
+        await acceptBtn.click()
+      }
+    } catch {
+      // No consent banner or already dismissed
+    }
+  })
+}
+
 export const itvNewsSource: ArticleSource = {
   id: 'itv-news',
   homepageUrl: ITV_HOMEPAGE_URL,
@@ -38,66 +64,26 @@ export const itvNewsSource: ArticleSource = {
     return /^https?:\/\/(www\.)?itv\.com\/news\//.test(url)
   },
 
-  parse(html: string, url: string): Article {
+  parseArticle(html: string, url: string): Article {
     return parse(html, url)
   },
 
-  async scrape(url: string): Promise<Article> {
+  async scrapeArticle(url: string): Promise<Article> {
     const html = await fetchHtml(url)
-    return this.parse(html, url)
+    return this.parseArticle(html, url)
   },
 
-  discover(html: string, _url: string): DiscoveredArticle[] {
+  parseArticles(html: string, _url: string): DiscoveredArticle[] {
     return discoverFromHomepage(html)
   },
 
-  async discoverArticles(url?: string): Promise<DiscoveredArticle[]> {
-    const targetUrl = url ?? ITV_HOMEPAGE_URL
-    const html = await fetchHtml(targetUrl)
+  async scrapeArticles(url?: string): Promise<DiscoveredArticle[]> {
+    const html = await fetchHtml(url ?? ITV_HOMEPAGE_URL)
     return discoverFromHomepage(html)
   },
-}
 
-// --- Fetch ---
-
-async function fetchHtml(url: string): Promise<string> {
-  // ITV blocks headless Chromium — must run headed
-  const browser = await chromium.launch({ headless: false })
-
-  try {
-    const context = await browser.newContext()
-    const page = await context.newPage()
-
-    try {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 })
-
-      // Wait for Next.js data to be present
-      await page.waitForFunction(
-        () =>
-          (document.getElementById('__NEXT_DATA__')?.textContent?.length ?? 0) >
-          0,
-        { timeout: 10_000 },
-      )
-
-      // Dismiss cookie consent (ITV uses Cassie widget)
-      try {
-        const acceptBtn = page.locator(
-          '.cassie-pre-banner button:has-text("Accept")',
-        )
-        if (await acceptBtn.isVisible({ timeout: 2_000 })) {
-          await acceptBtn.click()
-        }
-      } catch {
-        // No consent banner or already dismissed
-      }
-
-      return await page.content()
-    } finally {
-      await context.close()
-    }
-  } finally {
-    await browser.close()
-  }
+  init: () => fetcher.init(),
+  dispose: () => fetcher.dispose(),
 }
 
 // --- Discovery ---
@@ -467,7 +453,7 @@ function convertEmbeddedEntry(
         type: 'image',
         url: data.url,
         caption: data.caption,
-        credit: data.credit,
+        credit: data.credit || undefined,
         altText: data.description ?? data.caption,
       }
     case 'Brightcove':

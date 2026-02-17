@@ -66,7 +66,7 @@ Discovers which articles exist on a publisher's homepage. Optional step — for 
 - Resolve relative URLs to absolute
 - Filter non-article links (tag pages, about pages, external links)
 
-Each source implements `discover(html, url)` (pure) and `discoverArticles(url?)` (fetch + discover), mirroring the `parse`/`scrape` pattern. See [ADR-004](decisions/004-homepage-discovery.md).
+Each source implements `parseArticles(html, url)` (pure extraction) and `scrapeArticles(url?)` (fetch + extract), mirroring the `parseArticle`/`scrapeArticle` pattern. See [ADR-004](decisions/004-homepage-discovery.md).
 
 ### Content Fetcher
 
@@ -101,15 +101,19 @@ Converts raw content into structured data.
 
 This is the most complex component. It contains a **parser registry** — a set of CMS-specific parsers plus a generic fallback, selected based on the publisher's CMS type.
 
-#### Shared Extraction Utilities
+#### Shared Utilities
 
-Common extraction logic lives in `src/sources/shared/extract.ts` and is used by all CMS-specific parsers:
+Common logic lives in `src/sources/shared/` and is used by all CMS-specific parsers:
 
+**Extraction** (`shared/extract.ts`):
 - `extractJsonLd($)` — finds JSON-LD NewsArticle/Article from `<script type="application/ld+json">`
 - `extractOgTags($)` — extracts `og:*` meta tags into a key-value map
 - `escapeHtml(str)` — HTML entity escaping for `&`, `<`, `>`, `"`
 - `ensureIso(date)` — normalizes date strings to ISO 8601
 - `detectEmbedPlatform(url)` — maps iframe/embed URLs to platform enum (youtube, vimeo, x, etc.)
+
+**Playwright** (`shared/playwright.ts`):
+- `createPlaywrightFetcher(options?)` — factory for sources that need a headed browser (e.g. ITV News). Manages browser/context/page lifecycle with `init()` / `dispose()` hooks. When `init()` is called (e.g. by the poll orchestrator), a single browser window is reused across all fetches. For standalone CLI calls, a temporary browser is launched and closed per request. Sources pass an `onLoad` callback for CMS-specific page waits.
 
 CMS-specific logic (DOM traversal strategy, content selectors, metadata extraction from CMS-specific data structures) stays in each parser. The shared/CMS-specific boundary: **anything that depends on standard HTML conventions (JSON-LD, OG, HTML entities) is shared; anything that depends on a CMS's DOM structure or data format is CMS-specific.**
 
@@ -167,11 +171,41 @@ Each publisher is represented by a configuration record:
 | `priorityTier` | Urgency level (e.g., `standard`, `breaking`) |
 | `paywallAccess` | Credentials for accessing paywalled content |
 
+## Pipeline Orchestration Layer
+
+The poll orchestrator (`src/pipeline/poll.ts`) wires the components together into a repeatable cycle:
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   Poll Orchestrator                   │
+│                                                       │
+│  for each enabled publisher:                          │
+│    1. source.discoverArticles(homepageUrl)             │
+│    2. diff against DB → insert new as 'discovered'    │
+│    3. query DB for scrapeable (discovered | failed)   │
+│    4. source.scrape(url) → validate → write to disk   │
+│    5. update DB status (scraped | failed)             │
+└───────┬──────────────┬──────────────┬─────────────────┘
+        │              │              │
+   Publishers     State Store     Output Writer
+   Config          (SQLite)       (JSON files)
+```
+
+### Publisher Registry (`src/publishers.ts`)
+
+Single source of truth for publisher definitions. Each entry maps a publisher ID to a source ID and homepage URL. Validated with Zod at load time.
+
+### State Store (`src/pipeline/db/`)
+
+SQLite database (via `bun:sqlite` + Drizzle ORM) tracking discovered and scraped articles. Articles table with URL as primary key, status enum (`discovered` → `scraped` | `failed`), and output path. Idempotent inserts prevent re-processing. See [ADR-005](decisions/005-pipeline-state-sqlite.md).
+
+### Output Writer (`src/pipeline/output.ts`)
+
+Writes validated article JSON to `output/<publisherId>/<date>-<slug>.json`. Articles are validated before writing.
+
 ## Open Architectural Questions
 
-1. **State management**: where does Inkwell track which articles have been seen/processed? Internal database? External store?
+1. ~~**State management**: where does Inkwell track which articles have been seen/processed?~~ **Resolved**: SQLite with Drizzle ORM — see [ADR-005](decisions/005-pipeline-state-sqlite.md)
 2. **Queue/event system**: does Inkwell push validated JSON to a queue for transformers to consume, write to a store, or call transformer APIs directly?
-3. **Retry and failure handling**: how does Inkwell handle transient fetch failures vs. persistent structural changes?
+3. **Retry and failure handling**: how does Inkwell handle transient fetch failures vs. persistent structural changes? Current approach: retry failed articles once per poll cycle, no backoff.
 4. **Multi-tenancy**: is there one Inkwell instance for all publishers, or isolated instances per publisher / group?
-
-These will be resolved during implementation planning.
