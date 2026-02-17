@@ -9,6 +9,12 @@ import type {
   Source,
 } from "../schema/types.ts";
 import type { ArticleSource } from "./types.ts";
+import {
+  escapeHtml,
+  ensureIso,
+  extractJsonLd,
+  extractOgTags,
+} from "./shared/extract.ts";
 
 export const itvNewsSource: ArticleSource = {
   id: "itv-news",
@@ -115,30 +121,6 @@ function extractNextData($: cheerio.CheerioAPI): any {
   }
 }
 
-function extractJsonLd($: cheerio.CheerioAPI): any {
-  let result: any = null;
-  $('script[type="application/ld+json"]').each((_, el) => {
-    try {
-      const data = JSON.parse($(el).html() ?? "");
-      if (data["@type"] === "NewsArticle" || data["@type"] === "Article") {
-        result = data;
-      }
-    } catch {
-      // skip malformed JSON-LD
-    }
-  });
-  return result;
-}
-
-function extractOgTags($: cheerio.CheerioAPI): Record<string, string> {
-  const tags: Record<string, string> = {};
-  $("meta[property^='og:']").each((_, el) => {
-    const prop = $(el).attr("property");
-    const content = $(el).attr("content");
-    if (prop && content) tags[prop] = content;
-  });
-  return tags;
-}
 
 // --- Builders ---
 
@@ -415,20 +397,3 @@ function getPlainText(block: any): string {
   return (block.content ?? []).map(getPlainText).join("");
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function ensureIso(date: string): string {
-  if (/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(date)) {
-    if (!date.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(date)) {
-      return `${date}Z`;
-    }
-    return new Date(date).toISOString();
-  }
-  return new Date(date).toISOString();
-}

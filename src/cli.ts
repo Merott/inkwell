@@ -1,8 +1,8 @@
-import { itvNewsSource } from "./sources/itv-news.ts";
 import { validateArticle } from "./schema/validate.ts";
+import * as sources from "./sources/index.ts";
 import type { ArticleSource } from "./sources/types.ts";
 
-const sources: ArticleSource[] = [itvNewsSource];
+const allSources: ArticleSource[] = Object.values(sources);
 
 async function main() {
   const url = process.argv[2];
@@ -12,7 +12,7 @@ async function main() {
     process.exit(1);
   }
 
-  const source = sources.find((s) => s.matches(url));
+  const source = allSources.find((s) => s.matches(url));
   if (!source) {
     console.error(`No source found for URL: ${url}`);
     process.exit(1);

@@ -85,6 +85,18 @@ Converts raw content into structured data.
 
 This is the most complex component. It contains a **parser registry** — a set of CMS-specific parsers plus a generic fallback, selected based on the publisher's CMS type.
 
+#### Shared Extraction Utilities
+
+Common extraction logic lives in `src/sources/shared/extract.ts` and is used by all CMS-specific parsers:
+
+- `extractJsonLd($)` — finds JSON-LD NewsArticle/Article from `<script type="application/ld+json">`
+- `extractOgTags($)` — extracts `og:*` meta tags into a key-value map
+- `escapeHtml(str)` — HTML entity escaping for `&`, `<`, `>`, `"`
+- `ensureIso(date)` — normalizes date strings to ISO 8601
+- `detectEmbedPlatform(url)` — maps iframe/embed URLs to platform enum (youtube, vimeo, x, etc.)
+
+CMS-specific logic (DOM traversal strategy, content selectors, metadata extraction from CMS-specific data structures) stays in each parser. The shared/CMS-specific boundary: **anything that depends on standard HTML conventions (JSON-LD, OG, HTML entities) is shared; anything that depends on a CMS's DOM structure or data format is CMS-specific.**
+
 ### Schema Validator
 
 Validates extractor output against the intermediary JSON schema.
