@@ -168,8 +168,8 @@ function buildMetadata(
     .filter(Boolean) as string[] | undefined;
 
   const tags = article.topics
-    ?.map((t: any) => t.label)
-    .filter(Boolean) as string[] | undefined;
+    ? ([...new Set(article.topics.map((t: any) => t.label).filter(Boolean))] as string[])
+    : undefined;
 
   const keywords = jsonLd?.keywords
     ? typeof jsonLd.keywords === "string"

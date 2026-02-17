@@ -105,10 +105,14 @@ function buildMetadata(
 
   // Ghost stores tags in body classes: "tag-foo tag-bar"
   const bodyClass = $("body").attr("class") ?? "";
-  const tags = bodyClass
-    .split(/\s+/)
-    .filter((c) => c.startsWith("tag-"))
-    .map((c) => c.replace("tag-", "").replace(/-/g, " "));
+  const tags = [
+    ...new Set(
+      bodyClass
+        .split(/\s+/)
+        .filter((c) => c.startsWith("tag-"))
+        .map((c) => c.replace("tag-", "").replace(/-/g, " ")),
+    ),
+  ];
 
   return {
     title,
