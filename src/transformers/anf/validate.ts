@@ -17,6 +17,17 @@ const anfComponentSchema = z
   })
   .passthrough()
 
+const anfComponentLayoutSchema = z.object({
+  columnStart: z.number().int().nonnegative().optional(),
+  columnSpan: z.number().int().positive().optional(),
+  margin: z
+    .object({
+      top: z.number().int().nonnegative().optional(),
+      bottom: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
+})
+
 const anfDocumentSchema = z.object({
   version: z.string().min(1),
   identifier: z.string().min(1).max(64),
@@ -31,6 +42,7 @@ const anfDocumentSchema = z.object({
   }),
   components: z.array(anfComponentSchema).min(1),
   componentTextStyles: z.record(z.string(), z.object({}).passthrough()),
+  componentLayouts: z.record(z.string(), anfComponentLayoutSchema).optional(),
   metadata: anfMetadataSchema.optional(),
 })
 

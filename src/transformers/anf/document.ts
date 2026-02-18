@@ -6,6 +6,7 @@ import {
 import type {
   AnfArticleDocument,
   AnfComponent,
+  AnfComponentLayout,
   AnfComponentTextStyle,
 } from '@/transformers/anf/types.ts'
 
@@ -114,6 +115,91 @@ export function buildDefaultTextStyles(): Record<
   }
 }
 
+export function buildDefaultComponentLayouts(): Record<
+  string,
+  AnfComponentLayout
+> {
+  return {
+    bodyLayout: {
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 15, bottom: 15 },
+    },
+    headingLayout: {
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 30, bottom: 10 },
+    },
+    photoLayout: {
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 20, bottom: 20 },
+    },
+    headerPhotoLayout: {
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 0, bottom: 20 },
+    },
+    quoteLayout: {
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 24, bottom: 24 },
+    },
+    pullquoteLayout: {
+      columnStart: 1,
+      columnSpan: 5,
+      margin: { top: 24, bottom: 24 },
+    },
+    dividerLayout: {
+      columnStart: 2,
+      columnSpan: 3,
+      margin: { top: 24, bottom: 24 },
+    },
+    videoLayout: {
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 20, bottom: 20 },
+    },
+    socialEmbedLayout: {
+      columnStart: 1,
+      columnSpan: 5,
+      margin: { top: 20, bottom: 20 },
+    },
+    tableLayout: {
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 15, bottom: 15 },
+    },
+    adLayout: {
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 20, bottom: 20 },
+    },
+  }
+}
+
+const ROLE_TO_LAYOUT: Record<string, string> = {
+  body: 'bodyLayout',
+  heading1: 'headingLayout',
+  heading2: 'headingLayout',
+  heading3: 'headingLayout',
+  heading4: 'headingLayout',
+  heading5: 'headingLayout',
+  heading6: 'headingLayout',
+  photo: 'photoLayout',
+  quote: 'quoteLayout',
+  pullquote: 'pullquoteLayout',
+  divider: 'dividerLayout',
+  video: 'videoLayout',
+  embedwebvideo: 'videoLayout',
+  tweet: 'socialEmbedLayout',
+  instagram: 'socialEmbedLayout',
+  facebook_post: 'socialEmbedLayout',
+  tiktok: 'socialEmbedLayout',
+  htmltable: 'tableLayout',
+  banner_advertisement: 'adLayout',
+}
+
 export interface AssembleResult {
   document: AnfArticleDocument
   warnings: TransformWarning[]
@@ -128,6 +214,7 @@ export function assembleDocument(article: Article): AssembleResult {
     const headerImage: AnfComponent = {
       role: 'photo',
       URL: article.metadata.thumbnail.url,
+      layout: 'headerPhotoLayout',
       ...(article.metadata.thumbnail.altText
         ? { accessibilityCaption: article.metadata.thumbnail.altText }
         : {}),
@@ -140,6 +227,11 @@ export function assembleDocument(article: Article): AssembleResult {
       transformComponent(bodyComponent)
     warnings.push(...componentWarnings)
     if (result !== null) {
+      // Assign layout reference based on role
+      const layoutName = ROLE_TO_LAYOUT[result.role]
+      if (layoutName) {
+        ;(result as Record<string, unknown>).layout = layoutName
+      }
       components.push(result)
     }
   }
@@ -177,6 +269,7 @@ export function assembleDocument(article: Article): AssembleResult {
     layout: { columns: 7, width: 1024, margin: 60, gutter: 20 },
     components,
     componentTextStyles: buildDefaultTextStyles(),
+    componentLayouts: buildDefaultComponentLayouts(),
     metadata,
   }
 

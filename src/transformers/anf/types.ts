@@ -10,7 +10,14 @@ export interface AnfArticleDocument {
   layout: AnfLayout
   components: AnfComponent[]
   componentTextStyles: Record<string, AnfComponentTextStyle>
+  componentLayouts?: Record<string, AnfComponentLayout>
   metadata?: AnfMetadata
+}
+
+export interface AnfComponentLayout {
+  columnStart?: number
+  columnSpan?: number
+  margin?: { top?: number; bottom?: number }
 }
 
 export interface AnfLayout {
@@ -84,6 +91,7 @@ export interface AnfHeadingComponent {
   text: string
   format?: AnfTextFormat
   textStyle?: string
+  layout?: string
 }
 
 export interface AnfQuoteComponent {
@@ -91,6 +99,7 @@ export interface AnfQuoteComponent {
   text: string
   format?: AnfTextFormat
   textStyle?: string
+  layout?: string
 }
 
 export interface AnfPullquoteComponent {
@@ -98,6 +107,7 @@ export interface AnfPullquoteComponent {
   text: string
   format?: AnfTextFormat
   textStyle?: string
+  layout?: string
 }
 
 export interface AnfPhotoComponent {
@@ -105,6 +115,7 @@ export interface AnfPhotoComponent {
   URL: string
   caption?: string | AnfCaptionDescriptor
   accessibilityCaption?: string
+  layout?: string
 }
 
 export interface AnfCaptionDescriptor {
@@ -118,6 +129,7 @@ export interface AnfCaptionComponent {
   text: string
   format?: AnfTextFormat
   textStyle?: string
+  layout?: string
 }
 
 export interface AnfVideoComponent {
@@ -126,6 +138,7 @@ export interface AnfVideoComponent {
   stillURL?: string
   caption?: string
   accessibilityCaption?: string
+  layout?: string
 }
 
 export interface AnfEmbedWebVideoComponent {
@@ -133,38 +146,46 @@ export interface AnfEmbedWebVideoComponent {
   URL: string
   caption?: string
   accessibilityCaption?: string
+  layout?: string
 }
 
 export interface AnfTweetComponent {
   role: 'tweet'
   URL: string
+  layout?: string
 }
 
 export interface AnfInstagramComponent {
   role: 'instagram'
   URL: string
+  layout?: string
 }
 
 export interface AnfFacebookPostComponent {
   role: 'facebook_post'
   URL: string
+  layout?: string
 }
 
 export interface AnfTikTokComponent {
   role: 'tiktok'
   URL: string
+  layout?: string
 }
 
 export interface AnfDividerComponent {
   role: 'divider'
+  layout?: string
 }
 
 export interface AnfHtmlTableComponent {
   role: 'htmltable'
   html: string
+  layout?: string
 }
 
 export interface AnfBannerAdvertisementComponent {
   role: 'banner_advertisement'
   bannerType?: 'any' | 'standard' | 'double_height' | 'large'
+  layout?: string
 }

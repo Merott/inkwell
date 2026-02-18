@@ -130,7 +130,7 @@ Converts validated intermediary JSON into Apple News Format `ArticleDocument` JS
 - Decoupled from extraction: consumes only the `Article` type from `@/schema/types.ts`, imports nothing from `src/sources/` or `src/pipeline/`
 - Component mappers: each intermediary body component type maps to an ANF role via a switch dispatch in `components.ts`
 - HTML sanitizer (`html.ts`): tag allowlist + substitution, ensures HTML content is ANF-safe
-- Document assembly (`document.ts`): builds the top-level `ArticleDocument` with metadata, layout, and default `componentTextStyles`
+- Document assembly (`document.ts`): builds the top-level `ArticleDocument` with metadata, layout, default `componentTextStyles`, and `componentLayouts` (inter-component spacing via margins)
 - Zod validation (`validate.ts`): validates the assembled document before returning
 
 **Error strategy**: lenient per-component (unsupported types dropped with warnings), strict per-document (Zod validation throws on invalid output). See [ADR-006](decisions/006-anf-transformer-module.md).

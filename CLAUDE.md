@@ -19,4 +19,4 @@ At the end of each iteration (or any time I say "wrap"), you must:
 - Update `README.md` and living documents under `docs/` with new information and relevant learnings for your future self and other engineers.
 - If any important decisions were made, record it in `docs/decisions/NNN-[name].md`.
 - Explain how I can verify your work and wait for me to do so.
-- With my approval, commit the changes with a comprehensive yet concise message describing the work that was carried out and details of any work that's been deferred.
+- With my approval, commit the changes (or no-ff merge from feature branch) with a comprehensive yet concise message describing the work that was carried out and details of any work that's been deferred.

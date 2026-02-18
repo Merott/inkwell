@@ -85,25 +85,72 @@ describe('transformToAnf', () => {
     expect(document.metadata?.dateModified).toBe('2026-02-17T11:00:00Z')
   })
 
-  it('transforms body components with header image', () => {
+  it('transforms body components with header image and layout refs', () => {
     const { document } = transformToAnf(sampleArticle())
     // 1 header image + 6 body (rawHtml dropped) = 7
     expect(document.components).toHaveLength(7)
     expect(document.components[0]).toMatchObject({
       role: 'photo',
       URL: 'https://example.com/thumb.jpg',
+      layout: 'headerPhotoLayout',
     })
-    expect(document.components[1]).toMatchObject({ role: 'heading1' })
-    expect(document.components[2]).toMatchObject({ role: 'body' })
-    expect(document.components[3]).toMatchObject({ role: 'photo' })
-    expect(document.components[4]).toMatchObject({ role: 'body' })
-    expect(document.components[5]).toMatchObject({ role: 'divider' })
-    expect(document.components[6]).toMatchObject({ role: 'quote' })
+    expect(document.components[1]).toMatchObject({
+      role: 'heading1',
+      layout: 'headingLayout',
+    })
+    expect(document.components[2]).toMatchObject({
+      role: 'body',
+      layout: 'bodyLayout',
+    })
+    expect(document.components[3]).toMatchObject({
+      role: 'photo',
+      layout: 'photoLayout',
+    })
+    expect(document.components[4]).toMatchObject({
+      role: 'body',
+      layout: 'bodyLayout',
+    })
+    expect(document.components[5]).toMatchObject({
+      role: 'divider',
+      layout: 'dividerLayout',
+    })
+    expect(document.components[6]).toMatchObject({
+      role: 'quote',
+      layout: 'quoteLayout',
+    })
   })
 
   it('collects warnings for dropped components', () => {
     const { warnings } = transformToAnf(sampleArticle())
     expect(warnings.some((w) => w.type === 'dropped_component')).toBe(true)
+  })
+
+  it('includes default componentLayouts with margins', () => {
+    const { document } = transformToAnf(sampleArticle())
+    const layouts = document.componentLayouts!
+    expect(layouts.bodyLayout).toEqual({
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 15, bottom: 15 },
+    })
+    expect(layouts.headingLayout).toEqual({
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 30, bottom: 10 },
+    })
+    expect(layouts.photoLayout).toEqual({
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 20, bottom: 20 },
+    })
+    expect(layouts.headerPhotoLayout).toEqual({
+      columnStart: 0,
+      columnSpan: 7,
+      margin: { top: 0, bottom: 20 },
+    })
+    expect(layouts.quoteLayout).toBeDefined()
+    expect(layouts.pullquoteLayout).toBeDefined()
+    expect(layouts.dividerLayout).toBeDefined()
   })
 
   it('includes default componentTextStyles', () => {

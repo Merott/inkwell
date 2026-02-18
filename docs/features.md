@@ -155,15 +155,17 @@ Text components with `format: "html"` are sanitized before output:
 - **Disallowed tags**: unwrapped (children preserved, tag removed)
 - **Attributes**: stripped except `href` on `<a>`
 
-### Default Typography
+### Default Typography & Layout
 
-The transformer ships with default `componentTextStyles` covering body, headings 1–6, captions, quotes, pullquotes, and monospace. Serif body text (IowanOldStyle), sans-serif headings (HelveticaNeue-Bold), with sensible font sizes and line heights.
+The transformer ships with default `componentTextStyles` covering body, headings 1–6, captions, quotes, pullquotes, and monospace. Serif body text (Georgia), sans-serif headings (HelveticaNeue-Bold), with sensible font sizes and line heights.
+
+Inter-component spacing is controlled via `componentLayouts` — named layout definitions with `margin: { top, bottom }` values. Each component references a layout by name (e.g. `bodyLayout`, `headingLayout`, `photoLayout`). This is distinct from `paragraphSpacing` in text styles, which only controls spacing between paragraphs *within* a single text component.
 
 ### Integration
 
 - `bun run transform <path>` — standalone CLI for single file or batch conversion
 - `bun run poll --transform` — transforms each article immediately after scraping
-- ANF output goes to `output/<publisherId>/anf/<date>-<slug>.json`
+- ANF output goes to `output/<publisherId>/anf/<date>-<slug>/article.json`
 
 ### Error Strategy
 

@@ -100,7 +100,7 @@ bun run transform output/404-media/2026-02-18-my-article.json
 bun run transform output/404-media/
 ```
 
-ANF output is written alongside the source in `output/<publisherId>/anf/<date>-<slug>.json`.
+ANF output is written to `output/<publisherId>/anf/<date>-<slug>/article.json` (one directory per article, compatible with Apple News Preview).
 
 The transform can also run automatically after scraping:
 
@@ -158,7 +158,7 @@ src/
       index.ts            Public API: transformToAnf(Article) → AnfArticleDocument
       types.ts            ANF TypeScript type definitions
       components.ts       Component mappers (14 intermediary types → ANF roles)
-      document.ts         Document assembly + default componentTextStyles
+      document.ts         Document assembly, componentTextStyles + componentLayouts
       html.ts             HTML sanitizer (tag allowlist + substitution)
       validate.ts         Zod schema validation for ANF output
 tests/
