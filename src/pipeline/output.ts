@@ -25,7 +25,7 @@ export function buildAnfOutputPath(publisherId: string, article: Article) {
     ? article.metadata.publishedAt.slice(0, 10)
     : new Date().toISOString().slice(0, 10)
   const slug = slugFromUrl(article.source.url)
-  return join('output', publisherId, 'anf', `${date}-${slug}.json`)
+  return join('output', publisherId, 'anf', `${date}-${slug}`, 'article.json')
 }
 
 export async function writeArticle(

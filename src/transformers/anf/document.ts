@@ -32,7 +32,7 @@ export function buildDefaultTextStyles(): Record<
 > {
   return {
     'default-body': {
-      fontName: 'IowanOldStyle',
+      fontName: 'Georgia',
       fontSize: 16,
       lineHeight: 24,
       paragraphSpacingBefore: 6,
@@ -88,14 +88,14 @@ export function buildDefaultTextStyles(): Record<
       fontStyle: 'italic',
     },
     'default-pullquote': {
-      fontName: 'IowanOldStyle-Italic',
+      fontName: 'Georgia',
       fontSize: 24,
       lineHeight: 32,
       textAlignment: 'center',
       fontStyle: 'italic',
     },
     'default-quote': {
-      fontName: 'IowanOldStyle-Italic',
+      fontName: 'Georgia',
       fontSize: 16,
       lineHeight: 24,
       fontStyle: 'italic',
@@ -156,7 +156,7 @@ export function assembleDocument(article: Article): AssembleResult {
     ),
     title: article.metadata.title,
     language: article.metadata.language,
-    layout: { columns: 7, width: 1024 },
+    layout: { columns: 7, width: 1024, margin: 60, gutter: 20 },
     components,
     componentTextStyles: buildDefaultTextStyles(),
     metadata,

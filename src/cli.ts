@@ -183,8 +183,14 @@ async function transform(args: string[]) {
       const article = validateArticle(raw)
       const { document, warnings } = transformToAnf(article)
 
-      // Write ANF to sibling anf/ directory
-      const anfPath = file.replace(/\/([^/]+)\.json$/, '/anf/$1.json')
+      // Write ANF to sibling anf/ directory as article.json in named folder
+      const slug =
+        file
+          .replace(/\.json$/, '')
+          .split('/')
+          .pop() ?? 'article'
+      const anfDir = file.replace(/\/[^/]+\.json$/, `/anf/${slug}`)
+      const anfPath = `${anfDir}/article.json`
       await mkdir(dirname(anfPath), { recursive: true })
       await writeFile(anfPath, JSON.stringify(document, null, 2), 'utf-8')
 

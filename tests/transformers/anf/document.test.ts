@@ -63,7 +63,12 @@ describe('transformToAnf', () => {
 
   it('sets layout defaults', () => {
     const { document } = transformToAnf(sampleArticle())
-    expect(document.layout).toEqual({ columns: 7, width: 1024 })
+    expect(document.layout).toEqual({
+      columns: 7,
+      width: 1024,
+      margin: 60,
+      gutter: 20,
+    })
   })
 
   it('maps metadata correctly', () => {

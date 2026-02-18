@@ -26,6 +26,8 @@ const anfDocumentSchema = z.object({
   layout: z.object({
     columns: z.number().int().positive(),
     width: z.number().int().positive(),
+    margin: z.number().int().nonnegative(),
+    gutter: z.number().int().nonnegative(),
   }),
   components: z.array(anfComponentSchema).min(1),
   componentTextStyles: z.record(z.string(), z.object({}).passthrough()),

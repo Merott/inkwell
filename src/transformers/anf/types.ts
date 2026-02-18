@@ -16,6 +16,8 @@ export interface AnfArticleDocument {
 export interface AnfLayout {
   columns: number
   width: number
+  margin: number
+  gutter: number
 }
 
 export interface AnfMetadata {
