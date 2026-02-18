@@ -85,16 +85,20 @@ describe('transformToAnf', () => {
     expect(document.metadata?.dateModified).toBe('2026-02-17T11:00:00Z')
   })
 
-  it('transforms body components', () => {
+  it('transforms body components with header image', () => {
     const { document } = transformToAnf(sampleArticle())
-    // rawHtml dropped, so 6 components from 7 input
-    expect(document.components).toHaveLength(6)
-    expect(document.components[0]).toMatchObject({ role: 'heading1' })
-    expect(document.components[1]).toMatchObject({ role: 'body' })
-    expect(document.components[2]).toMatchObject({ role: 'photo' })
-    expect(document.components[3]).toMatchObject({ role: 'body' })
-    expect(document.components[4]).toMatchObject({ role: 'divider' })
-    expect(document.components[5]).toMatchObject({ role: 'quote' })
+    // 1 header image + 6 body (rawHtml dropped) = 7
+    expect(document.components).toHaveLength(7)
+    expect(document.components[0]).toMatchObject({
+      role: 'photo',
+      URL: 'https://example.com/thumb.jpg',
+    })
+    expect(document.components[1]).toMatchObject({ role: 'heading1' })
+    expect(document.components[2]).toMatchObject({ role: 'body' })
+    expect(document.components[3]).toMatchObject({ role: 'photo' })
+    expect(document.components[4]).toMatchObject({ role: 'body' })
+    expect(document.components[5]).toMatchObject({ role: 'divider' })
+    expect(document.components[6]).toMatchObject({ role: 'quote' })
   })
 
   it('collects warnings for dropped components', () => {
@@ -129,6 +133,7 @@ describe('transformToAnf', () => {
   it('throws on empty body after transformation', () => {
     const article = sampleArticle()
     article.body = [{ type: 'rawHtml', html: '<div>only raw</div>' }]
+    delete article.metadata.thumbnail
     expect(() => transformToAnf(article)).toThrow()
   })
 })
