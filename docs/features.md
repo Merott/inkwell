@@ -105,7 +105,7 @@ For publishers without RSS feeds or APIs, Inkwell polls their homepage to discov
 ## Scale
 
 - Hundreds of publisher sites
-- Poll frequency TBD — Flatplan's feed spec states feeds are "fetched continually"; actual interval to be confirmed
+- Poll frequency TBD — actual interval to be confirmed
 - Push mode for real-time where available
 
 ## Error Detection & Observability

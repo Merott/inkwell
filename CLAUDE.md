@@ -1,6 +1,6 @@
 # Inkwell
 
-Flatplan's content ingestion engine. Extracts structured content from publisher websites and outputs a normalized intermediary JSON for downstream transformation to Apple News Format (ANF) and other syndication platforms.
+Content ingestion engine. Extracts structured content from publisher websites and outputs a normalized intermediary JSON for downstream transformation to Apple News Format (ANF) and other syndication platforms.
 
 ## Documentation
 

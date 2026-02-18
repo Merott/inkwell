@@ -1,10 +1,10 @@
 # Inkwell
 
-**Flatplan's content ingestion engine.**
+**A content ingestion engine.**
 
 ## Problem
 
-Publishers want their content on Apple News, Flipboard, Google News, and other syndication platforms — but lack the technical skills to get it there. Flatplan abstracts this complexity away, offering a no-code path from CMS to syndication.
+Publishers want their content on Apple News, Flipboard, Google News, and other syndication platforms — but lack the technical skills to get it there. A content syndication platform can abstract this complexity away, offering a no-code path from CMS to syndication.
 
 The ingestion layer — the part that reads a publisher's site and extracts their content — needs improvement. The current system ingests via RSS feeds and APIs, but the majority of problems stem from publishers making changes to their site frontend or API content. At the scale of hundreds of sites, these changes are frequent and unpredictable, and the extraction needs tight, per-publisher guardrails rather than a one-size-fits-all approach.
 
@@ -14,13 +14,13 @@ Reliably extract rich, structured content from any publisher website and normali
 
 ## What Inkwell Is
 
-Inkwell is an internal Flatplan service — the **content source of truth**. It sits at the start of the content pipeline:
+Inkwell is the **content source of truth**. It sits at the start of the content pipeline:
 
 ```
 Publisher's Site → [Inkwell] → Intermediary JSON → [Transformers] → ANF / RSS / Google News / etc.
 ```
 
-It is not a product publishers interact with directly. It is intended to power Flatplan's content delivery behind the scenes, and potentially Press Publish's as well (to be confirmed).
+It is not a product publishers interact with directly. It powers content delivery behind the scenes.
 
 ## What Inkwell Owns
 
@@ -37,7 +37,7 @@ It is not a product publishers interact with directly. It is intended to power F
 
 ## Target Users
 
-Flatplan's engineering team. Inkwell is an internal service that serves publishers indirectly by powering Flatplan's content pipeline.
+Engineers. Inkwell is an internal service that serves publishers indirectly by powering the content pipeline.
 
 ## Future Vision
 
@@ -55,4 +55,4 @@ This is a long-term vision. The immediate goal is a solid, well-structured scrap
 
 ## Supported Publishers
 
-Flatplan works with publishers on a wide range of CMSes including WordPress, Ghost, Squarespace, Webflow, Drupal, Medium, Wix, Craft CMS, Contentful, Contentstack, RebelMouse, and bespoke/custom systems. Inkwell must handle all of these, leveraging CMS-specific knowledge where available for more reliable extraction.
+Publishers use a wide range of CMSes including WordPress, Ghost, Squarespace, Webflow, Drupal, Medium, Wix, Craft CMS, Contentful, Contentstack, RebelMouse, and bespoke/custom systems. Inkwell must handle all of these, leveraging CMS-specific knowledge where available for more reliable extraction.

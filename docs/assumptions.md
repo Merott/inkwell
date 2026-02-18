@@ -1,6 +1,6 @@
 # Inkwell — Working Assumptions
 
-Assumptions made during initial design that need validation with Flatplan. Grouped by risk level — **high-risk** assumptions could significantly alter design decisions if wrong.
+Assumptions made during initial design that need validation. Grouped by risk level — **high-risk** assumptions could significantly alter design decisions if wrong.
 
 ## High Risk
 
@@ -8,8 +8,8 @@ Assumptions made during initial design that need validation with Flatplan. Group
 
 | # | Assumption | What we don't know | Documented in |
 |---|---|---|---|
-| 1 | Inkwell will serve both Flatplan and Press Publish | Whether Press Publish has its own ingestion path or architecture | vision.md |
-| 2 | Flatplan uses (or will use) Sentry for monitoring | No knowledge of current observability tooling | vision.md |
+| 1 | Inkwell may serve multiple products | Whether other products have their own ingestion path or architecture | vision.md |
+| 2 | Sentry (or equivalent) will be used for monitoring | No knowledge of current observability tooling | vision.md |
 
 ### Scale & frequency
 
@@ -22,7 +22,7 @@ Assumptions made during initial design that need validation with Flatplan. Group
 | # | Assumption | What we don't know | Documented in |
 |---|---|---|---|
 | 4 | Publishers can/will configure webhooks for push mode | How many publishers have webhook capabilities or willingness to set them up | features.md, architecture.md |
-| 5 | Publishers provide authenticated access for paywalled content | Whether and how publishers grant Flatplan access behind paywalls | features.md |
+| 5 | Publishers provide authenticated access for paywalled content | Whether and how publishers grant access behind paywalls | features.md |
 | 6 | Paywall boundaries are detectable from server-rendered HTML | Many paywalls are JS-rendered client-side; may not be extractable via scraping | features.md, schema.md |
 
 ### Architecture
@@ -38,10 +38,10 @@ Assumptions made during initial design that need validation with Flatplan. Group
 | # | Assumption | What we don't know | Documented in |
 |---|---|---|---|
 | 8 | CMS API is always the richest ingestion source | Content received via API can also change unexpectedly; API reliability varies by CMS/publisher | features.md |
-| 9 | Social embeds we need: YouTube, Facebook, Instagram, TikTok, X, Dailymotion | Actual embed frequency across Flatplan's publisher base; may be missing Reddit, LinkedIn, Threads, Pinterest | features.md, schema.md |
+| 9 | Social embeds we need: YouTube, Facebook, Instagram, TikTok, X, Dailymotion | Actual embed frequency across publisher base; may be missing Reddit, LinkedIn, Threads, Pinterest | features.md, schema.md |
 | 10 | Series/collection membership is extractable | Don't know how many publishers use series, or if it's exposed in markup | features.md |
 | 11 | "At least one author" is a quality requirement | Wire service articles, editorial board pieces may not have named authors | architecture.md |
-| 12 | Ad placement hints belong in the intermediary schema | Don't know if Flatplan injects ads at the transformer level or handles it outside the content pipeline | schema.md |
+| 12 | Ad placement hints belong in the intermediary schema | Don't know if ads are injected at the transformer level or handled outside the content pipeline | schema.md |
 
 ### Platform specs
 
@@ -58,7 +58,7 @@ Assumptions made during initial design that need validation with Flatplan. Group
 | # | Assumption | What we don't know | Documented in |
 |---|---|---|---|
 | 16 | Ingestion preference order: API > RSS > scrape | Sensible default but may not hold for every publisher | features.md |
-| 17 | Three urgency levels (standard, priority, breaking) are sufficient | Whether Flatplan's pipeline has any urgency concept today | schema.md |
+| 17 | Three urgency levels (standard, priority, breaking) are sufficient | Whether the pipeline has any urgency concept today | schema.md |
 | 18 | Three paywall statuses (free, metered, premium) are sufficient | Real-world paywall variety (geographic, registration, tiered freemium) | schema.md, features.md |
 | 19 | Error categories (structural, content, fetch, degradation) are comprehensive | May need auth expiry, rate limiting, or other categories | features.md |
 | 20 | robots.txt compliance is required | If publishers contractually grant access, robots.txt may not apply | architecture.md |

@@ -1,6 +1,6 @@
 # Inkwell
 
-A proof-of-concept content ingestion engine for Flatplan.
+A proof-of-concept content ingestion engine.
 
 Extracts structured content from publisher websites and outputs normalized intermediary JSON for downstream transformation to Apple News Format (ANF) and other syndication platforms.
 
