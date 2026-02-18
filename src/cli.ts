@@ -114,10 +114,12 @@ async function poll(args: string[]) {
   const db = createDb()
 
   let publisherFlag: string | undefined
+  let transformFlag = false
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--publisher' && args[i + 1]) {
       publisherFlag = args[i + 1]
     }
+    if (args[i] === '--transform') transformFlag = true
   }
 
   if (publisherFlag) {
@@ -133,13 +135,17 @@ async function poll(args: string[]) {
     }
 
     console.error(`Polling ${config.name} (${config.id})...`)
-    const result = await pollPublisher(config, source, db)
+    const result = await pollPublisher(config, source, db, '.', {
+      transform: transformFlag,
+    })
     console.log(JSON.stringify(result, null, 2))
     printResultSummary([result])
   } else {
     const publishers = getEnabledPublishers()
     console.error(`Polling ${publishers.length} enabled publisher(s)...\n`)
-    const summary = await pollAll(publishers, getSourceById, db)
+    const summary = await pollAll(publishers, getSourceById, db, '.', {
+      transform: transformFlag,
+    })
     console.log(JSON.stringify(summary, null, 2))
     printResultSummary(summary.results)
     console.error(`\nTotals: ${fmt(summary.totals)}`)
