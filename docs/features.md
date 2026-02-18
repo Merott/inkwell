@@ -119,6 +119,57 @@ Inkwell surfaces extraction failures clearly and categorically:
 
 This categorization is the foundation for the future self-healing pipeline (Sentry → GitHub issue → AI agent fix → PR → deploy).
 
+## ANF Transformer
+
+Inkwell includes an Apple News Format transformer that converts intermediary JSON into valid ANF `ArticleDocument` JSON.
+
+### Component Mapping
+
+All 14 intermediary body component types are mapped to ANF roles:
+
+| Intermediary Type | ANF Role |
+|---|---|
+| paragraph | body |
+| heading (1-6) | heading1–heading6 |
+| blockquote | quote |
+| pullquote | pullquote |
+| list (ordered/unordered) | body (HTML `<ol>`/`<ul>`) |
+| codeBlock, preformatted | body (HTML `<pre>`) |
+| image | photo |
+| video | video |
+| embed (YouTube, Vimeo, etc.) | embedwebvideo |
+| embed (X, Instagram, Facebook, TikTok) | tweet, instagram, facebook_post, tiktok |
+| divider | divider |
+| table | htmltable |
+| rawHtml | dropped (with warning) |
+| adPlacement | banner_advertisement |
+
+Unsupported embed platforms fall back to body text with a warning.
+
+### HTML Sanitizer
+
+Text components with `format: "html"` are sanitized before output:
+
+- **Allowlist**: `a`, `b`, `strong`, `em`, `i`, `code`, `del`, `s`, `sub`, `sup`, `br`, `ul`, `ol`, `li`, `p`, `pre`, `blockquote`
+- **Substitutions**: `mark` → `b`, `cite`/`u`/`ins` → `em`
+- **Disallowed tags**: unwrapped (children preserved, tag removed)
+- **Attributes**: stripped except `href` on `<a>`
+
+### Default Typography
+
+The transformer ships with default `componentTextStyles` covering body, headings 1–6, captions, quotes, pullquotes, and monospace. Serif body text (IowanOldStyle), sans-serif headings (HelveticaNeue-Bold), with sensible font sizes and line heights.
+
+### Integration
+
+- `bun run transform <path>` — standalone CLI for single file or batch conversion
+- `bun run poll --transform` — transforms each article immediately after scraping
+- ANF output goes to `output/<publisherId>/anf/<date>-<slug>.json`
+
+### Error Strategy
+
+- **Per-component**: lenient — unsupported components are dropped with warnings, not errors
+- **Per-document**: strict — the assembled document is validated against a Zod schema; invalid documents throw
+
 ## Per-Publisher Configuration
 
 Each publisher has a configuration record specifying:
