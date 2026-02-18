@@ -41,7 +41,7 @@ Designed and built with [Claude Code](https://claude.ai/claude-code) — see com
 
 ## Status
 
-The core extraction pipeline works end-to-end for two source types:
+The core extraction pipeline works end-to-end for two source types, with an ANF transformer that converts intermediary JSON to Apple News Format:
 
 | Source | CMS | Method |
 |---|---|---|
@@ -90,6 +90,24 @@ bun run poll --publisher 404-media
 
 Discovers new articles, scrapes them, writes validated JSON to `output/<publisherId>/`, and tracks state in `data/inkwell.db`. Running the same command again skips already-scraped articles.
 
+### Transform intermediary JSON to Apple News Format
+
+```sh
+# Transform a single file
+bun run transform output/404-media/2026-02-18-my-article.json
+
+# Transform all JSON files in a directory
+bun run transform output/404-media/
+```
+
+ANF output is written to `output/<publisherId>/anf/<date>-<slug>/article.json` (one directory per article, compatible with Apple News Preview).
+
+The transform can also run automatically after scraping:
+
+```sh
+bun run poll --transform
+```
+
 ### Run tests
 
 ```sh
@@ -104,6 +122,8 @@ bun test
 | `bun run discover <target>` | Discover articles from a homepage or publisher |
 | `bun run poll` | Full discover + scrape pipeline (all publishers) |
 | `bun run poll --publisher <id>` | Poll a single publisher |
+| `bun run poll --transform` | Poll + transform scraped articles to ANF |
+| `bun run transform <path>` | Transform intermediary JSON to ANF (file or directory) |
 | `bun test` | Run all tests |
 | `bun run check` | Lint and format check (biome) |
 | `bun run format` | Auto-fix lint and formatting |
@@ -128,11 +148,19 @@ src/
     index.ts              Source registry + getSourceById helper
   pipeline/
     poll.ts               Poll orchestrator (discover → scrape → write)
-    output.ts             Article JSON file writer
+    output.ts             Article JSON file writer (intermediary + ANF)
     db/
       schema.ts           Drizzle ORM table definitions
       client.ts           SQLite connection (bun:sqlite + Drizzle)
       queries.ts          Typed query helpers (insert, status transitions)
+  transformers/
+    anf/
+      index.ts            Public API: transformToAnf(Article) → AnfArticleDocument
+      types.ts            ANF TypeScript type definitions
+      components.ts       Component mappers (14 intermediary types → ANF roles)
+      document.ts         Document assembly, componentTextStyles + componentLayouts
+      html.ts             HTML sanitizer (tag allowlist + substitution)
+      validate.ts         Zod schema validation for ANF output
 tests/
   fixtures/               HTML fixtures for parser tests
   pipeline/               Pipeline component tests

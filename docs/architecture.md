@@ -9,7 +9,7 @@ Inkwell's contract:
 - **Input**: a publisher configuration (site URL, CMS type, credentials, preferences)
 - **Output**: validated intermediary JSON documents, one per article
 
-Inkwell does **not** transform content into Apple News Format or any other syndication-specific format. Transformers are separate services that consume Inkwell's output (see [ADR-001](decisions/001-transformer-coupling.md)).
+The long-term intent is for transformers to be separate services (see [ADR-001](decisions/001-transformer-coupling.md)). For the PoC, the ANF transformer is co-located inside this repository as a decoupled module — it consumes intermediary JSON through the public `Article` type and imports nothing from the source/pipeline code (see [ADR-006](decisions/006-anf-transformer-module.md)).
 
 ## Pipeline Overview
 
@@ -29,12 +29,12 @@ Inkwell does **not** transform content into Apple News Format or any other syndi
 │  └──────────┘                                       └──────────┘│
 └──────────────────────────────────────────────────────────────────┘
                                                           │
-                                                          ▼
-                                            ┌───────────────────────┐
-                                            │  Downstream Services   │
-                                            │  (ANF Transformer,     │
-                                            │   RSS Generator, etc.) │
-                                            └───────────────────────┘
+                            ┌─────────────────────────────┤
+                            ▼                             ▼
+                  ┌──────────────────┐      ┌───────────────────────┐
+                  │  ANF Transformer │      │  Future Transformers   │
+                  │  (co-located)    │      │  (RSS, Google News...) │
+                  └──────────────────┘      └───────────────────────┘
 ```
 
 ## Components
@@ -116,6 +116,24 @@ Common logic lives in `src/sources/shared/` and is used by all CMS-specific pars
 - `createPlaywrightFetcher(options?)` — factory for sources that need a headed browser (e.g. ITV News). Manages browser/context/page lifecycle with `init()` / `dispose()` hooks. When `init()` is called (e.g. by the poll orchestrator), a single browser window is reused across all fetches. For standalone CLI calls, a temporary browser is launched and closed per request. Sources pass an `onLoad` callback for CMS-specific page waits.
 
 CMS-specific logic (DOM traversal strategy, content selectors, metadata extraction from CMS-specific data structures) stays in each parser. The shared/CMS-specific boundary: **anything that depends on standard HTML conventions (JSON-LD, OG, HTML entities) is shared; anything that depends on a CMS's DOM structure or data format is CMS-specific.**
+
+### ANF Transformer (`src/transformers/anf/`)
+
+Converts validated intermediary JSON into Apple News Format `ArticleDocument` JSON.
+
+**Inputs**: `Article` (validated intermediary JSON)
+
+**Outputs**: `AnfArticleDocument` (validated ANF JSON) + warnings
+
+**Architecture**:
+- Pure function: `transformToAnf(Article) → { document, warnings }` — no side effects, no source imports
+- Decoupled from extraction: consumes only the `Article` type from `@/schema/types.ts`, imports nothing from `src/sources/` or `src/pipeline/`
+- Component mappers: each intermediary body component type maps to an ANF role via a switch dispatch in `components.ts`
+- HTML sanitizer (`html.ts`): tag allowlist + substitution, ensures HTML content is ANF-safe
+- Document assembly (`document.ts`): builds the top-level `ArticleDocument` with metadata, layout, default `componentTextStyles`, and `componentLayouts` (inter-component spacing via margins)
+- Zod validation (`validate.ts`): validates the assembled document before returning
+
+**Error strategy**: lenient per-component (unsupported types dropped with warnings), strict per-document (Zod validation throws on invalid output). See [ADR-006](decisions/006-anf-transformer-module.md).
 
 ### Schema Validator
 

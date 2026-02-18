@@ -28,11 +28,16 @@ export interface PollSummary {
   }
 }
 
+export interface PollOptions {
+  transform?: boolean
+}
+
 export async function pollPublisher(
   config: PublisherConfig,
   source: ArticleSource,
   db: InkwellDb,
   baseDir = '.',
+  options?: PollOptions,
 ): Promise<PollResult> {
   const result: PollResult = {
     publisherId: config.id,
@@ -72,6 +77,20 @@ export async function pollPublisher(
         const outputPath = await writeArticle(config.id, article, baseDir)
         markScraped(db, row.url, outputPath)
         result.scraped++
+
+        if (options?.transform) {
+          const { transformToAnf } = await import('@/transformers/anf/index.ts')
+          const { writeAnfDocument } = await import('@/pipeline/output.ts')
+          const { document, warnings: anfWarnings } = transformToAnf(article)
+          const anfPath = await writeAnfDocument(
+            config.id,
+            article,
+            document,
+            baseDir,
+          )
+          console.error(`    ANF: ${anfPath}`)
+          for (const w of anfWarnings) console.error(`    \u26A0 ${w.message}`)
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         markFailed(db, row.url, message)
@@ -92,6 +111,7 @@ export async function pollAll(
   getSource: (sourceId: string) => ArticleSource | undefined,
   db: InkwellDb,
   baseDir = '.',
+  options?: PollOptions,
 ): Promise<PollSummary> {
   const results: PollResult[] = []
   const totals = { discovered: 0, scraped: 0, failed: 0, skipped: 0 }
@@ -106,7 +126,7 @@ export async function pollAll(
     }
 
     console.error(`\nPolling ${config.name} (${config.id})...`)
-    const result = await pollPublisher(config, source, db, baseDir)
+    const result = await pollPublisher(config, source, db, baseDir, options)
     results.push(result)
 
     totals.discovered += result.discovered

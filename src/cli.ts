@@ -16,6 +16,8 @@ async function main() {
     await scrape(args[1])
   } else if (command === 'poll') {
     await poll(args.slice(1))
+  } else if (command === 'transform') {
+    await transform(args.slice(1))
   } else if (command && /^https?:\/\//.test(command)) {
     // Bare URL — treat as scrape for backward compatibility
     await scrape(command)
@@ -24,6 +26,7 @@ async function main() {
     console.error('  bun run scrape <article-url>')
     console.error('  bun run discover <homepage-url | publisher-id>')
     console.error('  bun run poll [--publisher <id>] [--all]')
+    console.error('  bun run transform <path-to-json-or-directory>')
     process.exit(1)
   }
 }
@@ -111,10 +114,12 @@ async function poll(args: string[]) {
   const db = createDb()
 
   let publisherFlag: string | undefined
+  let transformFlag = false
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--publisher' && args[i + 1]) {
       publisherFlag = args[i + 1]
     }
+    if (args[i] === '--transform') transformFlag = true
   }
 
   if (publisherFlag) {
@@ -130,17 +135,80 @@ async function poll(args: string[]) {
     }
 
     console.error(`Polling ${config.name} (${config.id})...`)
-    const result = await pollPublisher(config, source, db)
+    const result = await pollPublisher(config, source, db, '.', {
+      transform: transformFlag,
+    })
     console.log(JSON.stringify(result, null, 2))
     printResultSummary([result])
   } else {
     const publishers = getEnabledPublishers()
     console.error(`Polling ${publishers.length} enabled publisher(s)...\n`)
-    const summary = await pollAll(publishers, getSourceById, db)
+    const summary = await pollAll(publishers, getSourceById, db, '.', {
+      transform: transformFlag,
+    })
     console.log(JSON.stringify(summary, null, 2))
     printResultSummary(summary.results)
     console.error(`\nTotals: ${fmt(summary.totals)}`)
   }
+}
+
+async function transform(args: string[]) {
+  const target = args[0]
+  if (!target) {
+    console.error('Usage: bun run transform <path-to-json-or-directory>')
+    process.exit(1)
+  }
+
+  const { transformToAnf } = await import('./transformers/anf/index.ts')
+  const { validateArticle } = await import('./schema/validate.ts')
+  const { readFile, readdir, mkdir, writeFile } = await import(
+    'node:fs/promises'
+  )
+  const { join, dirname } = await import('node:path')
+  const { stat } = await import('node:fs/promises')
+
+  const stats = await stat(target)
+  const files = stats.isDirectory()
+    ? (await readdir(target))
+        .filter((f) => f.endsWith('.json'))
+        .map((f) => join(target, f))
+    : [target]
+
+  let transformed = 0
+  let failed = 0
+
+  for (const file of files) {
+    try {
+      const raw = JSON.parse(await readFile(file, 'utf-8'))
+      const article = validateArticle(raw)
+      const { document, warnings } = transformToAnf(article)
+
+      // Write ANF to sibling anf/ directory as article.json in named folder
+      const slug =
+        file
+          .replace(/\.json$/, '')
+          .split('/')
+          .pop() ?? 'article'
+      const anfDir = file.replace(/\/[^/]+\.json$/, `/anf/${slug}`)
+      const anfPath = `${anfDir}/article.json`
+      await mkdir(dirname(anfPath), { recursive: true })
+      await writeFile(anfPath, JSON.stringify(document, null, 2), 'utf-8')
+
+      transformed++
+      if (warnings.length > 0) {
+        console.error(`  ${file}: ${warnings.length} warning(s)`)
+        for (const w of warnings) {
+          console.error(`    - ${w.message}`)
+        }
+      }
+    } catch (err) {
+      failed++
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`  FAIL ${file}: ${msg}`)
+    }
+  }
+
+  console.error(`\nTransformed ${transformed} file(s), ${failed} failed.`)
 }
 
 function fmt(t: {
